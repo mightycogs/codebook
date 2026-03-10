@@ -1,0 +1,228 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ci:
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
+    runs-on: ubuntu-latest
+    outputs:
+      tests_passed: ${{ steps.metrics.outputs.tests_passed }}
+      tests_failed: ${{ steps.metrics.outputs.tests_failed }}
+      tests_total: ${{ steps.metrics.outputs.tests_total }}
+      coverage_pct: ${{ steps.metrics.outputs.coverage_pct }}
+      test_exit: ${{ steps.metrics.outputs.test_exit }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: false
+      - name: Run tests and collect metrics
+        id: metrics
+        shell: bash
+        run: |
+          set +e
+          CGO_ENABLED=1 go test ./... -coverprofile=coverage.out -json > test-report.json
+          TEST_EXIT=$?
+          set -e
+
+          count_unique() {
+            awk 'NF' | sort -u | wc -l | tr -d ' '
+          }
+
+          TESTS_TOTAL=$(jq -r 'select(.Test != null and (.Action=="pass" or .Action=="fail" or .Action=="skip")) | .Test' test-report.json | count_unique)
+          TESTS_PASSED=$(jq -r 'select(.Test != null and .Action=="pass") | .Test' test-report.json | count_unique)
+          TESTS_FAILED=$(jq -r 'select(.Test != null and .Action=="fail") | .Test' test-report.json | count_unique)
+
+          COVERAGE="0.0"
+          if [[ -f coverage.out ]]; then
+            COVERAGE=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub("%", "", $3); print $3}')
+            if [[ -z "$COVERAGE" ]]; then
+              COVERAGE="0.0"
+            fi
+          fi
+
+          {
+            echo "tests_passed=$TESTS_PASSED"
+            echo "tests_failed=$TESTS_FAILED"
+            echo "tests_total=$TESTS_TOTAL"
+            echo "coverage_pct=$COVERAGE"
+            echo "test_exit=$TEST_EXIT"
+          } >> "$GITHUB_OUTPUT"
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Go CI"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|---|---:|"
+            echo "| Tests | ${{ steps.metrics.outputs.tests_passed }}/${{ steps.metrics.outputs.tests_total }} |"
+            echo "| Coverage | ${{ steps.metrics.outputs.coverage_pct }}% |"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Build coverage report
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p coverage-report
+          cp test-report.json coverage-report/test-report.json
+          if [[ -f coverage.out ]]; then
+            cp coverage.out coverage-report/coverage.out
+            go tool cover -func=coverage.out > coverage-report/coverage.txt
+            go tool cover -html=coverage.out -o coverage-report/index.html
+          else
+            echo "coverage.out was not generated (tests failed before coverage profile)." > coverage-report/coverage.txt
+          fi
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-reports
+          path: |
+            coverage-report/**
+      - name: Fail when tests fail
+        if: steps.metrics.outputs.test_exit != '0'
+        run: exit 1
+
+  badge:
+    needs: ci
+    if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve GIST metadata
+        id: gist
+        shell: bash
+        run: |
+          URL='${{ vars.GIST_URL }}'
+          if [[ -z "$URL" ]]; then
+            echo "GIST_URL variable is not set"
+            exit 1
+          fi
+
+          GIST_ID=$(echo "$URL" | sed -E 's#.*\/([0-9a-fA-F]{20,}).*#\1#')
+          OWNER=$(echo "$URL" | awk -F/ '{print $4}')
+          if [[ -z "$GIST_ID" || -z "$OWNER" || "$GIST_ID" == "$URL" || "$OWNER" == "$URL" ]]; then
+            echo "Cannot parse GIST_ID/OWNER from GIST_URL=$URL"
+            exit 1
+          fi
+
+          SLUG=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9]/-/g')
+
+          echo "gist_id=$GIST_ID" >> "$GITHUB_OUTPUT"
+          echo "owner=$OWNER" >> "$GITHUB_OUTPUT"
+          echo "branch_slug=$SLUG" >> "$GITHUB_OUTPUT"
+          echo "gist_base=https://gist.githubusercontent.com/$OWNER/$GIST_ID/raw" >> "$GITHUB_OUTPUT"
+          echo "gist_link=https://gist.github.com/$OWNER/$GIST_ID" >> "$GITHUB_OUTPUT"
+      - name: Compute badge payload
+        id: badge
+        shell: bash
+        env:
+          TESTS_PASSED: ${{ needs.ci.outputs.tests_passed }}
+          TESTS_FAILED: ${{ needs.ci.outputs.tests_failed }}
+          TESTS_TOTAL: ${{ needs.ci.outputs.tests_total }}
+          COVERAGE_PCT: ${{ needs.ci.outputs.coverage_pct }}
+        run: |
+          coverage_color() {
+            local value="$1"
+            if awk -v c="$value" 'BEGIN { exit !(c >= 85) }'; then echo "brightgreen"
+            elif awk -v c="$value" 'BEGIN { exit !(c >= 75) }'; then echo "green"
+            elif awk -v c="$value" 'BEGIN { exit !(c >= 60) }'; then echo "yellowgreen"
+            elif awk -v c="$value" 'BEGIN { exit !(c >= 40) }'; then echo "orange"
+            else echo "red"; fi
+          }
+
+          if [[ "$TESTS_FAILED" -gt 0 ]]; then
+            TEST_COLOR="red"
+          elif [[ "$TESTS_TOTAL" -gt 0 ]]; then
+            TEST_COLOR="brightgreen"
+          else
+            TEST_COLOR="gray"
+          fi
+
+          echo "tests_message=${TESTS_PASSED}/${TESTS_TOTAL} passing" >> "$GITHUB_OUTPUT"
+          echo "tests_color=$TEST_COLOR" >> "$GITHUB_OUTPUT"
+          echo "coverage_message=${COVERAGE_PCT}%" >> "$GITHUB_OUTPUT"
+          echo "coverage_color=$(coverage_color "$COVERAGE_PCT")" >> "$GITHUB_OUTPUT"
+      - name: Update tests badge
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: ${{ steps.gist.outputs.gist_id }}
+          filename: ${{ steps.gist.outputs.branch_slug }}_tests.json
+          label: Tests
+          message: ${{ steps.badge.outputs.tests_message }}
+          color: ${{ steps.badge.outputs.tests_color }}
+          namedLogo: go
+      - name: Wait for gist sync
+        run: sleep 5
+      - name: Update coverage badge
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: ${{ steps.gist.outputs.gist_id }}
+          filename: ${{ steps.gist.outputs.branch_slug }}_coverage.json
+          label: Coverage
+          message: ${{ steps.badge.outputs.coverage_message }}
+          color: ${{ steps.badge.outputs.coverage_color }}
+          namedLogo: go
+      - name: Sync README badge block
+        shell: bash
+        env:
+          GIST_URL: ${{ vars.GIST_URL }}
+          GIST_BASE: ${{ steps.gist.outputs.gist_base }}
+          BRANCH_SLUG: ${{ steps.gist.outputs.branch_slug }}
+        run: |
+          cat > /tmp/badges.md <<EOF
+          <!-- BADGES_START -->
+          [![Tests](https://img.shields.io/endpoint?url=${GIST_BASE}/${BRANCH_SLUG}_tests.json)](${GIST_URL})
+          [![Coverage](https://img.shields.io/endpoint?url=${GIST_BASE}/${BRANCH_SLUG}_coverage.json)](${GIST_URL})
+          <!-- BADGES_END -->
+          EOF
+
+          START_LINE=$(grep -n '^<!-- BADGES_START -->' README.md | cut -d: -f1)
+          END_LINE=$(grep -n '^<!-- BADGES_END -->' README.md | cut -d: -f1)
+
+          if [[ -z "$START_LINE" || -z "$END_LINE" || "$END_LINE" -le "$START_LINE" ]]; then
+            echo "README badge markers are missing or invalid"
+            exit 1
+          fi
+
+          head -n $((START_LINE - 1)) README.md > README.md.new
+          cat /tmp/badges.md >> README.md.new
+          tail -n +$((END_LINE + 1)) README.md >> README.md.new
+          mv README.md.new README.md
+
+          if git diff --quiet -- README.md; then
+            echo "README badge block is up to date"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "chore: sync README badge links [skip ci]"
+          git push
+      - name: Badge summary
+        run: |
+          BASE="${{ steps.gist.outputs.gist_base }}"
+          SLUG="${{ steps.gist.outputs.branch_slug }}"
+          LINK="${{ steps.gist.outputs.gist_link }}"
+          {
+            echo "## Badges (${SLUG})"
+            echo ""
+            echo "![Tests](https://img.shields.io/endpoint?url=${BASE}/${SLUG}_tests.json) ![Coverage](https://img.shields.io/endpoint?url=${BASE}/${SLUG}_coverage.json)"
+            echo ""
+            echo "Markdown for README:"
+            echo '```'
+            echo "[![Tests](https://img.shields.io/endpoint?url=${BASE}/${SLUG}_tests.json)](${LINK})"
+            echo "[![Coverage](https://img.shields.io/endpoint?url=${BASE}/${SLUG}_coverage.json)](${LINK})"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

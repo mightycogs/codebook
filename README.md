@@ -1,5 +1,8 @@
 # codebase-memory-mcp
 
+<!-- BADGES_START -->
+<!-- BADGES_END -->
+
 <img src="docs/small_create_with_ai.png" style="float: left; margin: 0 15px 15px 0;" width="150">
 
 
