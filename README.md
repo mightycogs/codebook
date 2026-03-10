@@ -1,6 +1,8 @@
 # codebase-memory-mcp
 
 <!-- BADGES_START -->
+[![Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/mightycogs/d1c003ef95d36236bf88a08fa3674396/raw/main_tests.json)](https://gist.github.com/mightycogs/d1c003ef95d36236bf88a08fa3674396)
+[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/mightycogs/d1c003ef95d36236bf88a08fa3674396/raw/main_coverage.json)](https://gist.github.com/mightycogs/d1c003ef95d36236bf88a08fa3674396)
 <!-- BADGES_END -->
 
 <img src="docs/small_create_with_ai.png" style="float: left; margin: 0 15px 15px 0;" width="150">
