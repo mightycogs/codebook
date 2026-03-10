@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/lang"
+	"github.com/mightycogs/codebook/internal/lang"
 )
 
 // testFilePattern defines how to detect test files for a language.

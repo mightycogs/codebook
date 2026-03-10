@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 const maxResultRows = 200

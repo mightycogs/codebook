@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/cypher"
+	"github.com/mightycogs/codebook/internal/cypher"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

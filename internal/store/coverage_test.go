@@ -849,7 +849,7 @@ func TestRouterCloseAll(t *testing.T) {
 func TestRouterAllStoresSkipsLegacy(t *testing.T) {
 	dir := t.TempDir()
 
-	legacyPath := filepath.Join(dir, "codebase-memory.db")
+	legacyPath := filepath.Join(dir, "codebook.db")
 	f, err := os.Create(legacyPath)
 	if err != nil {
 		t.Fatalf("create legacy db: %v", err)
@@ -863,7 +863,7 @@ func TestRouterAllStoresSkipsLegacy(t *testing.T) {
 
 	allStores := r.AllStores()
 	for name := range allStores {
-		if name == "codebase-memory" {
+		if name == "codebook" {
 			t.Error("AllStores should skip legacy single DB")
 		}
 	}
@@ -887,7 +887,7 @@ func TestMigrateNoLegacyDB(t *testing.T) {
 func TestMigrateWithLegacyDB(t *testing.T) {
 	dir := t.TempDir()
 
-	legacyPath := filepath.Join(dir, "codebase-memory.db")
+	legacyPath := filepath.Join(dir, "codebook.db")
 	legacyStore, err := OpenPath(legacyPath)
 	if err != nil {
 		t.Fatalf("open legacy db: %v", err)
@@ -938,7 +938,7 @@ func TestMigrateWithLegacyDB(t *testing.T) {
 func TestMigrateAlreadyMigrated(t *testing.T) {
 	dir := t.TempDir()
 
-	legacyPath := filepath.Join(dir, "codebase-memory.db")
+	legacyPath := filepath.Join(dir, "codebook.db")
 	legacyStore, err := OpenPath(legacyPath)
 	if err != nil {
 		t.Fatalf("open legacy db: %v", err)

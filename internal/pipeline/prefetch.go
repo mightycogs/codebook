@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync/atomic"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/discover"
+	"github.com/mightycogs/codebook/internal/discover"
 )
 
 // prefetcher warms the OS page cache ahead of worker consumption.

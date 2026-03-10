@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 func TestNormalizePath(t *testing.T) {

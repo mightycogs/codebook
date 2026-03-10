@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 func TestIsTrackableFile(t *testing.T) {

@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/fqn"
-	"github.com/mightycogs/codebase-memory-mcp/internal/lang"
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/fqn"
+	"github.com/mightycogs/codebook/internal/lang"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 // ifaceMethodInfo holds a method name and its qualified name for OVERRIDE edge creation.

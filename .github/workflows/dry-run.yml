@@ -52,11 +52,11 @@ jobs:
       - name: Build binary
         run: |
           CGO_ENABLED=1 go build \
-            -o codebase-memory-mcp \
-            ./cmd/codebase-memory-mcp/
+            -o codebook \
+            ./cmd/codebook/
 
       - name: Smoke test
-        run: bash scripts/smoke-test.sh ./codebase-memory-mcp
+        run: bash scripts/smoke-test.sh ./codebook
 
   test-windows:
     needs: [lint]
@@ -85,9 +85,9 @@ jobs:
         shell: msys2 {0}
         run: |
           CGO_ENABLED=1 CC=gcc go build \
-            -o codebase-memory-mcp.exe \
-            ./cmd/codebase-memory-mcp/
+            -o codebook.exe \
+            ./cmd/codebook/
 
       - name: Smoke test
         shell: msys2 {0}
-        run: bash scripts/smoke-test.sh ./codebase-memory-mcp.exe
+        run: bash scripts/smoke-test.sh ./codebook.exe

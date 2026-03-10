@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/lang"
+	"github.com/mightycogs/codebook/internal/lang"
 )
 
 func TestPythonDocstring(t *testing.T) {

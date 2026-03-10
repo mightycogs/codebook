@@ -6,7 +6,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/lang"
+	"github.com/mightycogs/codebook/internal/lang"
 )
 
 // passUsesType creates USES_TYPE edges using pre-extracted CBM data.

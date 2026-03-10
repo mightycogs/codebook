@@ -13,10 +13,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/discover"
-	"github.com/mightycogs/codebase-memory-mcp/internal/pipeline"
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
-	"github.com/mightycogs/codebase-memory-mcp/internal/watcher"
+	"github.com/mightycogs/codebook/internal/discover"
+	"github.com/mightycogs/codebook/internal/pipeline"
+	"github.com/mightycogs/codebook/internal/store"
+	"github.com/mightycogs/codebook/internal/watcher"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -52,7 +52,7 @@ func NewServer(r *store.StoreRouter) *Server {
 
 	srv.mcp = mcp.NewServer(
 		&mcp.Implementation{
-			Name:    "codebase-memory-mcp",
+			Name:    "codebook",
 			Version: Version,
 		},
 		&mcp.ServerOptions{

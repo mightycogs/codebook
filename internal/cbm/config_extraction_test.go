@@ -3,7 +3,7 @@ package cbm
 import (
 	"testing"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/lang"
+	"github.com/mightycogs/codebook/internal/lang"
 )
 
 // --- TOML Tests ---

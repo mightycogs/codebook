@@ -3,7 +3,7 @@ package pipeline
 import (
 	"testing"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 func TestGraphBuffer_UpsertNode_New(t *testing.T) {
@@ -250,7 +250,7 @@ func TestGraphBuffer_AllNodes(t *testing.T) {
 
 func TestGraphBuffer_RoundTripProps(t *testing.T) {
 	input := map[string]any{
-		"tags": []string{"a", "b"},
+		"tags":  []string{"a", "b"},
 		"count": 42,
 	}
 	result := roundTripProps(input)

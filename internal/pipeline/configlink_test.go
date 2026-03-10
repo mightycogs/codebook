@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/discover"
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/discover"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 // --- Strategy 1: Key → Symbol Matching ---

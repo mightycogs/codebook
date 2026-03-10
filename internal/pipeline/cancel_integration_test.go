@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/discover"
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/discover"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 // TestGracefulShutdownLargeRepo indexes a real repo with a short timeout to

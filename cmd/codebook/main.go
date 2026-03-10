@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
-	"github.com/mightycogs/codebase-memory-mcp/internal/tools"
+	"github.com/mightycogs/codebook/internal/store"
+	"github.com/mightycogs/codebook/internal/tools"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -22,7 +22,7 @@ func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "--version":
-			fmt.Println("codebase-memory-mcp", version)
+			fmt.Println("codebook", version)
 			os.Exit(0)
 		case "install":
 			os.Exit(runInstall(os.Args[2:]))
@@ -75,7 +75,7 @@ func runCLI(args []string) int {
 
 	if len(positional) == 0 || positional[0] == "--help" || positional[0] == "-h" {
 		srv := tools.NewServer(router)
-		fmt.Fprintf(os.Stderr, "Usage: codebase-memory-mcp cli [--raw] <tool_name> [json_args]\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: codebook cli [--raw] <tool_name> [json_args]\n\n")
 		fmt.Fprintf(os.Stderr, "Flags:\n  --raw    Print full JSON output (default: human-friendly summary)\n\n")
 		fmt.Fprintf(os.Stderr, "Available tools:\n  %s\n", strings.Join(srv.ToolNames(), "\n  "))
 		return 0

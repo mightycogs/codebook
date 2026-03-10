@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 // --- Lexer tests ---

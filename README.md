@@ -1,4 +1,4 @@
-# codebase-memory-mcp
+# Codebook
 
 <!-- BADGES_START -->
 [![Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/mightycogs/d1c003ef95d36236bf88a08fa3674396/raw/main_tests.json)](https://gist.github.com/mightycogs/d1c003ef95d36236bf88a08fa3674396)
@@ -8,7 +8,7 @@
 <img src="docs/small_create_with_ai.png" style="float: left; margin: 0 15px 15px 0;" width="150">
 
 
-> **This is a customized fork of [DeusData/codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp)** -- an excellent project by the DeusData team. Full credit to the original authors for the architecture, tree-sitter integration, and the idea itself. This fork is tailored for internal use and is not recommended for general consumption. Changes from upstream: removed self-update mechanism for supply chain security, rebranded to mightycogs namespace, restructured documentation, removed setup scripts in favor of Makefile-based workflow.
+> **Codebook is a customized fork of [DeusData/codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp)**. Full credit to the original authors for the architecture, tree-sitter integration, and the core idea. This fork lives as a separate product with its own release identity and light UX changes, while keeping the underlying codebase broadly compatible upstream where practical.
 
 Every time an AI agent explores your codebase, it burns thousands of tokens grepping through files, rebuilding the same understanding from scratch. This MCP server indexes your code into a persistent knowledge graph -- one query returns what would take dozens of file reads. 99% fewer tokens, sub-millisecond responses, survives session restarts.
 
@@ -19,15 +19,15 @@ Single Go binary. No Docker, no databases, no API keys.
 Requires Go 1.25+ and a C compiler (`xcode-select --install` on macOS).
 
 ```bash
-git clone https://github.com/mightycogs/codebase-memory-mcp.git
-cd codebase-memory-mcp
+git clone https://github.com/mightycogs/codebook.git
+cd codebook
 make install
-codebase-memory-mcp install
+codebook install
 ```
 
 Restart your editor. The `install` command auto-detects Claude Code, Codex CLI, Cursor, Windsurf, Gemini CLI, VS Code, and Zed -- registers the MCP server and installs task-specific skills.
 
-Now open any project and say **"Index this project"**. That's it. The graph persists in `~/.cache/codebase-memory-mcp/` and auto-syncs when files change.
+Now open any project and say **"Index this project"**. That's it. The graph persists in `~/.codebook/` and auto-syncs when files change.
 
 ## Everyday Usage
 
@@ -98,9 +98,9 @@ All test/coverage targets accept `PKG=./internal/...` to scope to a single packa
 Every tool works from the command line too -- no MCP client needed:
 
 ```bash
-codebase-memory-mcp cli search_graph '{"name_pattern": ".*Handler.*"}'
-codebase-memory-mcp cli trace_call_path '{"function_name": "main", "direction": "outbound"}'
-codebase-memory-mcp cli --raw query_graph '{"query": "MATCH (f:Function) RETURN f.name LIMIT 5"}' | jq
+codebook cli search_graph '{"name_pattern": ".*Handler.*"}'
+codebook cli trace_call_path '{"function_name": "main", "direction": "outbound"}'
+codebook cli --raw query_graph '{"query": "MATCH (f:Function) RETURN f.name LIMIT 5"}' | jq
 ```
 
 See [docs/CLI.md](docs/CLI.md) for more.

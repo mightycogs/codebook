@@ -3,7 +3,7 @@ package pipeline
 import (
 	"testing"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 func TestPassImplementsCreatesOverrideEdges(t *testing.T) {

@@ -13,11 +13,11 @@ import (
 )
 
 // migrate performs a one-time migration from the legacy single-DB layout
-// (codebase-memory.db) to per-project .db files.
+// (codebook.db) to per-project .db files.
 // Safe to call multiple times — it's a no-op if the legacy DB doesn't exist
 // or has already been migrated.
 func (r *StoreRouter) migrate() error {
-	legacyPath := filepath.Join(r.dir, "codebase-memory.db")
+	legacyPath := filepath.Join(r.dir, "codebook.db")
 	if _, err := os.Stat(legacyPath); os.IsNotExist(err) {
 		return nil // nothing to migrate
 	}

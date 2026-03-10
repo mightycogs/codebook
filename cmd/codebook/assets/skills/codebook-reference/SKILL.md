@@ -1,13 +1,13 @@
 ---
-name: codebase-memory-reference
+name: codebook-reference
 description: >
-  This skill should be used when the user asks about "codebase-memory-mcp tools",
+  This skill should be used when the user asks about "codebook tools",
   "graph query syntax", "Cypher query examples", "edge types",
   "how to use search_graph", "query_graph examples", or needs reference
   documentation for the codebase knowledge graph tools.
 ---
 
-# Codebase Memory MCP — Tool Reference
+# Codebook — Tool Reference
 
 ## Tools (14 total)
 

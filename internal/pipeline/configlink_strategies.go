@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 // configExtensions are file extensions considered "config files".

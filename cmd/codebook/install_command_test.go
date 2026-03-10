@@ -74,17 +74,17 @@ func TestRunUninstall_DryRun(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(home, ".codex", "instructions"), 0o750); err != nil {
 		t.Fatalf("mkdir codex instructions: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(home, ".codex", "instructions", "codebase-memory-mcp.md"), []byte("x"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(home, ".codex", "instructions", "codebook.md"), []byte("x"), 0o600); err != nil {
 		t.Fatalf("write codex instructions: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(home, ".codex", "config.toml"), []byte("[mcp_servers.codebase-memory-mcp]\ncommand = \"/tmp/cbm\"\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(home, ".codex", "config.toml"), []byte("[mcp_servers.codebook]\ncommand = \"/tmp/cbm\"\n"), 0o600); err != nil {
 		t.Fatalf("write codex config: %v", err)
 	}
 	cursorCfg := filepath.Join(home, ".cursor", "mcp.json")
 	if err := os.MkdirAll(filepath.Dir(cursorCfg), 0o750); err != nil {
 		t.Fatalf("mkdir cursor cfg: %v", err)
 	}
-	if err := os.WriteFile(cursorCfg, []byte("{\"mcpServers\":{\"codebase-memory-mcp\":{\"command\":\"/tmp/cbm\"}}}"), 0o600); err != nil {
+	if err := os.WriteFile(cursorCfg, []byte("{\"mcpServers\":{\"codebook\":{\"command\":\"/tmp/cbm\"}}}"), 0o600); err != nil {
 		t.Fatalf("write cursor cfg: %v", err)
 	}
 

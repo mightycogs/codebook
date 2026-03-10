@@ -6,7 +6,7 @@ import (
 	"math"
 	"sort"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 // passCommunities runs Louvain community detection on the CALLS graph

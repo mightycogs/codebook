@@ -1,8 +1,8 @@
 .PHONY: build test coverage report lint clean install check help
 .DEFAULT_GOAL := help
 
-BINARY=codebase-memory-mcp
-MODULE=github.com/mightycogs/codebase-memory-mcp
+BINARY=codebook
+MODULE=github.com/mightycogs/codebook
 
 PKG ?= ./...
 COVER_OUT ?= coverage.out
@@ -12,7 +12,7 @@ help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
 
 build: clean  ## Build binary to bin/
-	go build -o bin/$(BINARY) ./cmd/codebase-memory-mcp/
+	go build -o bin/$(BINARY) ./cmd/codebook/
 
 test:  ## Run tests (PKG=./internal/pipeline/ VERBOSE=1)
 	CGO_ENABLED=1 go test $(PKG) $(if $(VERBOSE),-v)

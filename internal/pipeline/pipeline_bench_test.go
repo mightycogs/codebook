@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/discover"
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/discover"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 // setupBenchRepo creates a temp directory with 10 Go files across 2 packages.

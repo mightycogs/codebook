@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/cbm"
-	"github.com/mightycogs/codebase-memory-mcp/internal/lang"
+	"github.com/mightycogs/codebook/internal/cbm"
+	"github.com/mightycogs/codebook/internal/lang"
 )
 
 func dumpCBM(t *testing.T, name string, l lang.Language, src string) {

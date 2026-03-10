@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"sort"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/pipeline"
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/pipeline"
+	"github.com/mightycogs/codebook/internal/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

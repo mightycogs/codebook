@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 // GraphBuffer holds all nodes and edges in memory during the buffered indexing phase.

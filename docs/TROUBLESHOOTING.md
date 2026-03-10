@@ -2,7 +2,7 @@
 
 | Problem | Cause | Fix |
 |---------|-------|-----|
-| `/mcp` doesn't show the server | Config not loaded or binary not found | Check `.mcp.json` path is absolute and correct. Restart Claude Code. Verify binary runs: `/path/to/codebase-memory-mcp` should output JSON. |
+| `/mcp` doesn't show the server | Config not loaded or binary not found | Check `.mcp.json` path is absolute and correct. Restart Claude Code. Verify binary runs: `/path/to/codebook` should output JSON. |
 | `index_repository` fails | Missing `repo_path` or path doesn't exist | Pass an absolute path: `index_repository(repo_path="/absolute/path")` |
 | `get_architecture` returns empty sections | No project indexed or project has few nodes | Run `index_repository` first. Some aspects (routes, hotspots, clusters) require enough graph data to produce meaningful results. |
 | `get_code_snippet` returns "node not found" | Wrong qualified name format | Use `search_graph` first to find the exact `qualified_name`, then pass it to `get_code_snippet`. See [Qualified Names](GRAPH-MODEL.md#qualified-names). |

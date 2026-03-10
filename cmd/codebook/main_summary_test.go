@@ -447,7 +447,7 @@ func TestRunCLI(t *testing.T) {
 				t.Fatalf("runCLI help returned %d, want 0", code)
 			}
 		})
-		if !strings.Contains(out, "Usage: codebase-memory-mcp cli") {
+		if !strings.Contains(out, "Usage: codebook cli") {
 			t.Fatalf("expected help output, got %q", out)
 		}
 	})

@@ -56,7 +56,7 @@ func cacheDir() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("home dir: %w", err)
 	}
-	dir := filepath.Join(home, ".cache", "codebase-memory-mcp")
+	dir := filepath.Join(home, ".codebook")
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return "", fmt.Errorf("mkdir cache: %w", err)
 	}

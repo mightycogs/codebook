@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 // CommitFiles holds the files changed in a single commit.

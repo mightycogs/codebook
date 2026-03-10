@@ -3,8 +3,8 @@ package pipeline
 import (
 	"testing"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/discover"
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/discover"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 func TestContentionTierString(t *testing.T) {
@@ -306,9 +306,9 @@ func TestBuildSymbolSummary(t *testing.T) {
 		t.Fatalf("expected 3 symbols, got %d: %v", len(symbols), symbols)
 	}
 	expected := map[string]bool{
-		"func:Foo":  true,
+		"func:Foo":   true,
 		"method:Bar": true,
-		"class:Baz": true,
+		"class:Baz":  true,
 	}
 	for _, s := range symbols {
 		if !expected[s] {

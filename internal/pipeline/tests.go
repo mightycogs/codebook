@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/lang"
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/lang"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 // passTests derives TESTS and TESTS_FILE edges from existing CALLS/IMPORTS data.

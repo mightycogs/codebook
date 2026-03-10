@@ -1,4 +1,4 @@
-module github.com/mightycogs/codebase-memory-mcp
+module github.com/mightycogs/codebook
 
 go 1.25
 

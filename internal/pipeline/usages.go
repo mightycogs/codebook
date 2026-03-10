@@ -6,9 +6,9 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/discover"
-	"github.com/mightycogs/codebase-memory-mcp/internal/lang"
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/discover"
+	"github.com/mightycogs/codebook/internal/lang"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 // passUsages creates USAGE edges using pre-extracted CBM data.

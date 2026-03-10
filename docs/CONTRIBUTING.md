@@ -1,4 +1,4 @@
-# Contributing to codebase-memory-mcp
+# Contributing to codebook
 
 Contributions are welcome. This guide covers setup, testing, and PR guidelines.
 
@@ -7,9 +7,9 @@ Contributions are welcome. This guide covers setup, testing, and PR guidelines.
 **Prerequisites**: Go 1.25+, a C compiler (gcc or clang — needed for tree-sitter CGO bindings), Git.
 
 ```bash
-git clone https://github.com/mightycogs/codebase-memory-mcp.git
-cd codebase-memory-mcp
-CGO_ENABLED=1 go build -o codebase-memory-mcp ./cmd/codebase-memory-mcp/
+git clone https://github.com/mightycogs/codebook.git
+cd codebook
+CGO_ENABLED=1 go build -o codebook ./cmd/codebook/
 ```
 
 macOS: `xcode-select --install` provides clang.
@@ -35,7 +35,7 @@ golangci-lint run ./...
 ## Project Structure
 
 ```
-cmd/codebase-memory-mcp/  Entry point (MCP server + CLI + install)
+cmd/codebook/  Entry point (MCP server + CLI + install)
 internal/
   lang/                   Language specs (63 languages, tree-sitter node types)
   parser/                 Tree-sitter grammar loading
@@ -74,7 +74,7 @@ Most language issues are in `internal/lang/<name>.go` (node type configuration) 
 
 ## Good First Issues
 
-Check [issues labeled `good first issue`](https://github.com/mightycogs/codebase-memory-mcp/labels/good%20first%20issue) for beginner-friendly tasks with clear scope and guidance.
+Check [issues labeled `good first issue`](https://github.com/mightycogs/codebook/labels/good%20first%20issue) for beginner-friendly tasks with clear scope and guidance.
 
 ## License
 

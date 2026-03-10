@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/cbm"
-	"github.com/mightycogs/codebase-memory-mcp/internal/discover"
-	"github.com/mightycogs/codebase-memory-mcp/internal/fqn"
-	"github.com/mightycogs/codebase-memory-mcp/internal/lang"
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/cbm"
+	"github.com/mightycogs/codebook/internal/discover"
+	"github.com/mightycogs/codebook/internal/fqn"
+	"github.com/mightycogs/codebook/internal/lang"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 // cachedExtraction holds the CBM extraction result for a file.

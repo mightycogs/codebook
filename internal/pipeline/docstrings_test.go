@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/discover"
-	"github.com/mightycogs/codebase-memory-mcp/internal/lang"
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/discover"
+	"github.com/mightycogs/codebook/internal/lang"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 func writeLangTestFile(t *testing.T, path, content string) {

@@ -35,7 +35,7 @@ func runInstall(args []string) int {
 		return 1
 	}
 
-	fmt.Printf("\ncodebase-memory-mcp %s — install\n", version)
+	fmt.Printf("\ncodebook %s — install\n", version)
 	fmt.Printf("Binary: %s\n\n", binaryPath)
 
 	// PATH check
@@ -91,7 +91,7 @@ func runUninstall(args []string) int {
 		}
 	}
 
-	fmt.Printf("\ncodebase-memory-mcp %s — uninstall\n\n", version)
+	fmt.Printf("\ncodebook %s — uninstall\n\n", version)
 
 	// Remove Claude Code skills
 	removeClaudeSkills(cfg)
@@ -187,7 +187,7 @@ func ensurePATH(binaryPath string, cfg installConfig) {
 			return
 		}
 		defer f.Close()
-		fmt.Fprintf(f, "\n# Added by codebase-memory-mcp install\n%s\n", line)
+		fmt.Fprintf(f, "\n# Added by codebook install\n%s\n", line)
 		fmt.Printf("  ✓ Added to %s: %s\n", rcFile, line)
 		fmt.Printf("  → Run: source %s (or restart terminal)\n", rcFile)
 	}
@@ -230,7 +230,7 @@ func installSkills(cfg installConfig) {
 	fmt.Println("[Skills]")
 
 	// Remove old monolithic skill if it exists
-	oldSkillDir := filepath.Join(home, ".claude", "skills", "codebase-memory-mcp")
+	oldSkillDir := filepath.Join(home, ".claude", "skills", "codebook")
 	if info, err := os.Stat(oldSkillDir); err == nil && info.IsDir() {
 		if cfg.dryRun {
 			fmt.Printf("  [dry-run] Would remove old skill: %s\n", oldSkillDir)
@@ -273,12 +273,12 @@ func installSkills(cfg installConfig) {
 // registerClaudeCodeMCP registers the MCP server with Claude Code CLI.
 func registerClaudeCodeMCP(binaryPath, claudePath string, cfg installConfig) {
 	if cfg.dryRun {
-		fmt.Printf("  [dry-run] Would run: %s mcp remove -s user codebase-memory-mcp\n", claudePath)
-		fmt.Printf("  [dry-run] Would run: %s mcp add --scope user codebase-memory-mcp -- %s\n", claudePath, binaryPath)
+		fmt.Printf("  [dry-run] Would run: %s mcp remove -s user codebook\n", claudePath)
+		fmt.Printf("  [dry-run] Would run: %s mcp add --scope user codebook -- %s\n", claudePath, binaryPath)
 	} else {
 		// Silent remove (may fail if not registered — that's fine)
-		_ = execCLI(claudePath, "mcp", "remove", "-s", "user", "codebase-memory-mcp")
-		if err := execCLI(claudePath, "mcp", "add", "--scope", "user", "codebase-memory-mcp", "--", binaryPath); err != nil {
+		_ = execCLI(claudePath, "mcp", "remove", "-s", "user", "codebook")
+		if err := execCLI(claudePath, "mcp", "add", "--scope", "user", "codebook", "--", binaryPath); err != nil {
 			fmt.Printf("  ⚠ MCP registration failed: %v\n", err)
 		} else {
 			fmt.Println("  ✓ MCP server registered (scope: user)")
@@ -296,7 +296,7 @@ func installCodex(binaryPath, _ string, cfg installConfig) {
 
 	// Register MCP server via config.toml
 	configFile := filepath.Join(home, ".codex", "config.toml")
-	mcpSection := fmt.Sprintf("\n[mcp_servers.codebase-memory-mcp]\ncommand = %q\n", binaryPath)
+	mcpSection := fmt.Sprintf("\n[mcp_servers.codebook]\ncommand = %q\n", binaryPath)
 
 	if cfg.dryRun {
 		fmt.Printf("  [dry-run] Would add MCP server to: %s\n", configFile)
@@ -312,7 +312,7 @@ func installCodex(binaryPath, _ string, cfg installConfig) {
 
 	// Write instructions file
 	instrDir := filepath.Join(home, ".codex", "instructions")
-	instrFile := filepath.Join(instrDir, "codebase-memory-mcp.md")
+	instrFile := filepath.Join(instrDir, "codebook.md")
 
 	if cfg.dryRun {
 		fmt.Printf("  [dry-run] Would write: %s\n", instrFile)
@@ -329,7 +329,7 @@ func installCodex(binaryPath, _ string, cfg installConfig) {
 	}
 }
 
-// upsertCodexMCP adds or updates the codebase-memory-mcp section in config.toml.
+// upsertCodexMCP adds or updates the codebook section in config.toml.
 func upsertCodexMCP(configFile, mcpSection, binaryPath string) error {
 	content, err := os.ReadFile(configFile)
 	if err != nil && !os.IsNotExist(err) {
@@ -339,7 +339,7 @@ func upsertCodexMCP(configFile, mcpSection, binaryPath string) error {
 	text := string(content)
 
 	// If section already exists, replace the command line
-	const sectionHeader = "[mcp_servers.codebase-memory-mcp]"
+	const sectionHeader = "[mcp_servers.codebook]"
 	if idx := strings.Index(text, sectionHeader); idx >= 0 {
 		// Find the end of this section (next [ or EOF)
 		rest := text[idx+len(sectionHeader):]
@@ -385,9 +385,9 @@ func removeClaudeSkills(cfg installConfig) {
 // deregisterMCP removes the MCP server registration from a CLI.
 func deregisterMCP(cliPath, cliName string, cfg installConfig) {
 	if cfg.dryRun {
-		fmt.Printf("  [dry-run] Would run: %s mcp remove -s user codebase-memory-mcp\n", cliPath)
+		fmt.Printf("  [dry-run] Would run: %s mcp remove -s user codebook\n", cliPath)
 	} else {
-		if err := execCLI(cliPath, "mcp", "remove", "-s", "user", "codebase-memory-mcp"); err != nil {
+		if err := execCLI(cliPath, "mcp", "remove", "-s", "user", "codebook"); err != nil {
 			fmt.Printf("  ⚠ %s MCP deregistration: %v\n", cliName, err)
 		} else {
 			fmt.Printf("  ✓ %s MCP server deregistered\n", cliName)
@@ -395,7 +395,7 @@ func deregisterMCP(cliPath, cliName string, cfg installConfig) {
 	}
 }
 
-// removeCodexMCP removes the codebase-memory-mcp section from Codex config.toml.
+// removeCodexMCP removes the codebook section from Codex config.toml.
 func removeCodexMCP(cfg installConfig) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -408,7 +408,7 @@ func removeCodexMCP(cfg installConfig) {
 	}
 
 	text := string(content)
-	const sectionHeader = "[mcp_servers.codebase-memory-mcp]"
+	const sectionHeader = "[mcp_servers.codebook]"
 	idx := strings.Index(text, sectionHeader)
 	if idx < 0 {
 		return
@@ -441,7 +441,7 @@ func removeCodexInstructions(cfg installConfig) {
 	if err != nil {
 		return
 	}
-	instrFile := filepath.Join(home, ".codex", "instructions", "codebase-memory-mcp.md")
+	instrFile := filepath.Join(home, ".codex", "instructions", "codebook.md")
 	if _, err := os.Stat(instrFile); os.IsNotExist(err) {
 		return
 	}
@@ -498,7 +498,7 @@ func execCLI(path string, args ...string) error {
 
 // --- Editor MCP config (Cursor, Windsurf) ---
 
-const mcpServerKey = "codebase-memory-mcp"
+const mcpServerKey = "codebook"
 
 // cursorConfigPath returns the Cursor MCP config path.
 func cursorConfigPath() string {

@@ -3,7 +3,7 @@ package pipeline
 import (
 	"log/slog"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 // passInherits creates INHERITS edges from Class nodes to their base classes.

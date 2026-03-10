@@ -19,7 +19,7 @@ type ProjectInfo struct {
 // StoreRouter manages per-project SQLite databases.
 // Each project gets its own .db file in the cache directory.
 type StoreRouter struct {
-	dir    string            // ~/.cache/codebase-memory-mcp/
+	dir    string            // ~/.codebook/
 	stores map[string]*Store // project name → open Store (lazy)
 	mu     sync.Mutex
 }
@@ -93,7 +93,7 @@ func (r *StoreRouter) AllStores() map[string]*Store {
 			continue
 		}
 		name := strings.TrimSuffix(e.Name(), ".db")
-		if name == "codebase-memory" {
+		if name == "codebook" {
 			continue // skip legacy single DB
 		}
 		if _, ok := r.stores[name]; ok {
@@ -128,7 +128,7 @@ func (r *StoreRouter) ListProjects() ([]*ProjectInfo, error) {
 			continue
 		}
 		name := strings.TrimSuffix(e.Name(), ".db")
-		if name == "codebase-memory" {
+		if name == "codebook" {
 			continue // skip legacy single DB
 		}
 		info := &ProjectInfo{

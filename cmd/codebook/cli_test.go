@@ -21,7 +21,7 @@ func TestMain(m *testing.M) {
 		panic("create temp dir: " + err.Error())
 	}
 
-	binName := "codebase-memory-mcp"
+	binName := "codebook"
 	if runtime.GOOS == "windows" {
 		binName += ".exe"
 	}
@@ -73,7 +73,7 @@ func TestCLI_Version(t *testing.T) {
 		t.Fatalf("--version failed: %v\n%s", err, out)
 	}
 	output := strings.TrimSpace(string(out))
-	if !strings.HasPrefix(output, "codebase-memory-mcp") {
+	if !strings.HasPrefix(output, "codebook") {
 		t.Fatalf("unexpected --version output: %q", output)
 	}
 }
@@ -137,10 +137,10 @@ func TestCLI_InstallAndUninstall(t *testing.T) {
 
 	// Verify skills were created
 	expectedSkills := []string{
-		"codebase-memory-exploring",
-		"codebase-memory-tracing",
-		"codebase-memory-quality",
-		"codebase-memory-reference",
+		"codebook-exploring",
+		"codebook-tracing",
+		"codebook-quality",
+		"codebook-reference",
 	}
 	for _, name := range expectedSkills {
 		skillFile := filepath.Join(home, ".claude", "skills", name, "SKILL.md")
@@ -170,7 +170,7 @@ func TestCLI_InstallRemovesOldSkill(t *testing.T) {
 	home := t.TempDir()
 	emptyPath := t.TempDir()
 
-	oldDir := filepath.Join(home, ".claude", "skills", "codebase-memory-mcp")
+	oldDir := filepath.Join(home, ".claude", "skills", "codebook")
 	if err := os.MkdirAll(oldDir, 0o750); err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestCLI_InstallRemovesOldSkill(t *testing.T) {
 	if _, err := os.Stat(oldDir); !os.IsNotExist(err) {
 		t.Fatal("old monolithic skill dir should be removed")
 	}
-	if _, err := os.Stat(filepath.Join(home, ".claude", "skills", "codebase-memory-exploring", "SKILL.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(home, ".claude", "skills", "codebook-exploring", "SKILL.md")); err != nil {
 		t.Fatal("new exploring skill should exist")
 	}
 }
@@ -206,7 +206,7 @@ func TestCLI_InstallIdempotent(t *testing.T) {
 		}
 	}
 
-	skillFile := filepath.Join(home, ".claude", "skills", "codebase-memory-exploring", "SKILL.md")
+	skillFile := filepath.Join(home, ".claude", "skills", "codebook-exploring", "SKILL.md")
 	if _, err := os.Stat(skillFile); err != nil {
 		t.Fatal("skill missing after idempotent install")
 	}
@@ -222,7 +222,7 @@ func TestCLI_InstallForceOverwrites(t *testing.T) {
 		t.Fatalf("first install failed: %v\n%s", err, out)
 	}
 
-	skillFile := filepath.Join(home, ".claude", "skills", "codebase-memory-exploring", "SKILL.md")
+	skillFile := filepath.Join(home, ".claude", "skills", "codebook-exploring", "SKILL.md")
 	if err := os.WriteFile(skillFile, []byte("custom content"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -273,7 +273,7 @@ func TestCLI_InstallPATHAppend(t *testing.T) {
 	if !strings.Contains(string(data), "export PATH=") {
 		t.Fatal("expected PATH export in .zshrc")
 	}
-	if !strings.Contains(string(data), "codebase-memory-mcp install") {
+	if !strings.Contains(string(data), "codebook install") {
 		t.Fatal("expected install comment in .zshrc")
 	}
 }

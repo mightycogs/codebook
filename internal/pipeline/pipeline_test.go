@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mightycogs/codebase-memory-mcp/internal/discover"
-	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebook/internal/discover"
+	"github.com/mightycogs/codebook/internal/store"
 )
 
 func setupTestRepo(t *testing.T) (dir string, cleanup func()) {
@@ -796,7 +796,7 @@ func TestProjectNameFromPath(t *testing.T) {
 		// Windows paths (#20)
 		{"C:/Users/project", "C-Users-project"},
 		{"D:\\Projects\\myapp", "D-Projects-myapp"},
-		{"C:\\Temp\\codebase-memory-mcp", "C-Temp-codebase-memory-mcp"},
+		{"C:\\Temp\\codebook", "C-Temp-codebook"},
 	}
 	for _, tt := range tests {
 		got := ProjectNameFromPath(tt.path)
