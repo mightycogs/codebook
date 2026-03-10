@@ -49,6 +49,14 @@ jobs:
             fi
           fi
 
+          echo "::group::Test metrics"
+          echo "tests_passed=$TESTS_PASSED"
+          echo "tests_failed=$TESTS_FAILED"
+          echo "tests_total=$TESTS_TOTAL"
+          echo "coverage_pct=$COVERAGE"
+          echo "test_exit=$TEST_EXIT"
+          echo "::endgroup::"
+
           {
             echo "tests_passed=$TESTS_PASSED"
             echo "tests_failed=$TESTS_FAILED"
@@ -89,7 +97,15 @@ jobs:
             coverage-report/**
       - name: Fail when tests fail
         if: steps.metrics.outputs.test_exit != '0'
-        run: exit 1
+        run: |
+          echo "::error::Tests failed (exit code ${{ steps.metrics.outputs.test_exit }}): ${{ steps.metrics.outputs.tests_failed }} of ${{ steps.metrics.outputs.tests_total }} tests failed. Coverage: ${{ steps.metrics.outputs.coverage_pct }}%"
+          echo ""
+          echo "Failed tests (from test-report.json):"
+          jq -r 'select(.Test != null and .Action=="fail") | "  FAIL: " + .Package + "/" + .Test' test-report.json | sort -u
+          echo ""
+          echo "Package failures:"
+          jq -r 'select(.Test == null and .Action=="fail") | "  FAIL: " + .Package + " (" + (.Elapsed|tostring) + "s)"' test-report.json
+          exit 1
 
   badge:
     needs: ci
