@@ -16,7 +16,6 @@ Parses source code with [tree-sitter](https://tree-sitter.github.io/tree-sitter/
 - **Risk-classified tracing**: `trace_call_path` with `risk_labels=true` adds impact classification to every node in the call chain
 - **Case-insensitive search**: `search_graph` and `search_code` are case-insensitive by default — set `case_sensitive=true` for exact matching
 - **One-command install**: `codebase-memory-mcp install` auto-detects Claude Code, Codex CLI, Cursor, Windsurf, Gemini CLI, VS Code, and Zed, registers the MCP server, and installs task-specific skills
-- **Self-update**: `codebase-memory-mcp update` downloads the latest release, verifies checksums, and atomically swaps the binary
 - **Task-specific skills**: 4 skills (exploring, tracing, quality, reference) that prescribe exact tool sequences — Claude Code automatically uses graph tools instead of defaulting to grep
 - **Fast**: Sub-millisecond graph queries, incremental reindex 4x faster than full scan, optimized SQLite with LIKE pre-filtering for regex searches
 - **Call graph**: Resolves function calls across files and packages (import-aware, type-inferred)
@@ -77,7 +76,7 @@ Benchmarked on Apple M3 Pro, macOS Darwin 25.3.0:
 
 ## Quick Start
 
-1. **Download** the binary for your platform from the [latest release](https://github.com/DeusData/codebase-memory-mcp/releases/latest)
+1. **Download** the binary for your platform from the [latest release](https://github.com/mightycogs/codebase-memory-mcp/releases/latest)
 2. **Extract and move** to a directory on your PATH:
    ```bash
    tar xzf codebase-memory-mcp-*.tar.gz
@@ -91,14 +90,6 @@ Benchmarked on Apple M3 Pro, macOS Darwin 25.3.0:
 5. Say **"Index this project"** — done.
 
 The `install` command auto-detects Claude Code, Codex CLI, Cursor, Windsurf, Gemini CLI, VS Code, and Zed, registers the MCP server, installs 4 task-specific skills, and ensures the binary is on your PATH. Use `--dry-run` to preview without making changes.
-
-### Keeping Up to Date
-
-```bash
-codebase-memory-mcp update
-```
-
-Downloads the latest release, verifies SHA-256 checksums, atomically swaps the binary, and re-applies skills. Restart Claude Code / Codex to activate.
 
 ### Uninstall
 
@@ -132,13 +123,13 @@ Every release includes a `checksums.txt` with SHA-256 hashes for verification.
 **macOS / Linux:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/DeusData/codebase-memory-mcp/main/scripts/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/mightycogs/codebase-memory-mcp/main/scripts/setup.sh | bash
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-irm https://raw.githubusercontent.com/DeusData/codebase-memory-mcp/main/scripts/setup-windows.ps1 | iex
+irm https://raw.githubusercontent.com/mightycogs/codebase-memory-mcp/main/scripts/setup-windows.ps1 | iex
 ```
 
 The scripts download the correct binary for your platform, install it, and run `codebase-memory-mcp install` to configure Claude Code/Codex.
@@ -150,7 +141,7 @@ The scripts download the correct binary for your platform, install it, and run `
 Or just paste the repo URL into Claude Code:
 
 ```
-You: "Install this MCP server: https://github.com/DeusData/codebase-memory-mcp"
+You: "Install this MCP server: https://github.com/mightycogs/codebase-memory-mcp"
 ```
 
 Claude Code will clone, build, and configure it automatically.
@@ -179,16 +170,16 @@ A **C compiler** is needed because tree-sitter uses CGO (C bindings for AST pars
 
 ```bash
 # macOS / Linux
-curl -fsSL https://raw.githubusercontent.com/DeusData/codebase-memory-mcp/main/scripts/setup.sh | bash -s -- --from-source
+curl -fsSL https://raw.githubusercontent.com/mightycogs/codebase-memory-mcp/main/scripts/setup.sh | bash -s -- --from-source
 
 # Windows (PowerShell) — builds inside WSL
-irm https://raw.githubusercontent.com/DeusData/codebase-memory-mcp/main/scripts/setup-windows.ps1 -OutFile setup.ps1; .\setup.ps1 -FromSource
+irm https://raw.githubusercontent.com/mightycogs/codebase-memory-mcp/main/scripts/setup-windows.ps1 -OutFile setup.ps1; .\setup.ps1 -FromSource
 ```
 
 **Or manually:**
 
 ```bash
-git clone https://github.com/DeusData/codebase-memory-mcp.git
+git clone https://github.com/mightycogs/codebase-memory-mcp.git
 cd codebase-memory-mcp
 CGO_ENABLED=1 go build -o codebase-memory-mcp ./cmd/codebase-memory-mcp/
 # Move the binary to somewhere on your PATH
@@ -206,7 +197,7 @@ On **Windows with WSL** (credit: [@Flipper1994](https://github.com/Flipper1994))
 # Inside WSL (Ubuntu)
 sudo apt update && sudo apt install build-essential
 # Install Go 1.26+ from https://go.dev/dl/
-git clone https://github.com/DeusData/codebase-memory-mcp.git
+git clone https://github.com/mightycogs/codebase-memory-mcp.git
 cd codebase-memory-mcp
 CGO_ENABLED=1 go build -buildvcs=false -o ~/.local/bin/codebase-memory-mcp ./cmd/codebase-memory-mcp/
 ```
@@ -679,7 +670,7 @@ See [`BENCHMARK.md`](BENCHMARK.md) for the full 35-language benchmark with per-q
 ## Architecture
 
 ```
-cmd/codebase-memory-mcp/  Entry point (MCP stdio server + CLI mode + install/update commands)
+cmd/codebase-memory-mcp/  Entry point (MCP stdio server + CLI mode + install command)
 internal/
   store/                  SQLite graph storage (nodes, edges, traversal, search, architecture, Louvain clustering)
   lang/                   Language specs (64 languages, tree-sitter node types)
@@ -687,7 +678,6 @@ internal/
   pipeline/               Multi-pass indexing (structure → definitions → calls → HTTP links → config links → communities → tests)
   httplink/               Cross-service HTTP route/call-site matching
   cypher/                 Cypher query lexer, parser, planner, executor
-  selfupdate/             GitHub release checking, version comparison, asset download
   tools/                  MCP tool handlers (12 tools) + CLI dispatch
   watcher/                Background auto-sync (mtime+size polling, adaptive intervals)
   discover/               File discovery with .cgrignore support

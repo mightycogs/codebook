@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/DeusData/codebase-memory-mcp/internal/fqn"
-	"github.com/DeusData/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebase-memory-mcp/internal/fqn"
+	"github.com/mightycogs/codebase-memory-mcp/internal/store"
 	"golang.org/x/sync/errgroup"
 )
 

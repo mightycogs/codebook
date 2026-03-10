@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/DeusData/codebase-memory-mcp/internal/store"
-	"github.com/DeusData/codebase-memory-mcp/internal/tools"
+	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebase-memory-mcp/internal/tools"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -28,8 +28,6 @@ func main() {
 			os.Exit(runInstall(os.Args[2:]))
 		case "uninstall":
 			os.Exit(runUninstall(os.Args[2:]))
-		case "update":
-			os.Exit(runUpdate(os.Args[2:]))
 		case "cli":
 			if len(os.Args) >= 3 {
 				os.Exit(runCLI(os.Args[2:]))

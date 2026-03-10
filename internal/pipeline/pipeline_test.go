@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/DeusData/codebase-memory-mcp/internal/discover"
-	"github.com/DeusData/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebase-memory-mcp/internal/discover"
+	"github.com/mightycogs/codebase-memory-mcp/internal/store"
 )
 
 func setupTestRepo(t *testing.T) (dir string, cleanup func()) {

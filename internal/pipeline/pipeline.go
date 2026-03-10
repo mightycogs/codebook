@@ -18,12 +18,12 @@ import (
 	"github.com/zeebo/xxh3"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/DeusData/codebase-memory-mcp/internal/cbm"
-	"github.com/DeusData/codebase-memory-mcp/internal/discover"
-	"github.com/DeusData/codebase-memory-mcp/internal/fqn"
-	"github.com/DeusData/codebase-memory-mcp/internal/httplink"
-	"github.com/DeusData/codebase-memory-mcp/internal/lang"
-	"github.com/DeusData/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebase-memory-mcp/internal/cbm"
+	"github.com/mightycogs/codebase-memory-mcp/internal/discover"
+	"github.com/mightycogs/codebase-memory-mcp/internal/fqn"
+	"github.com/mightycogs/codebase-memory-mcp/internal/httplink"
+	"github.com/mightycogs/codebase-memory-mcp/internal/lang"
+	"github.com/mightycogs/codebase-memory-mcp/internal/store"
 )
 
 // Pipeline orchestrates the 3-pass indexing of a repository.

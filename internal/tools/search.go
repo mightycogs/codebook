@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/DeusData/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebase-memory-mcp/internal/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -100,7 +100,5 @@ func (s *Server) handleSearchGraph(_ context.Context, req *mcp.CallToolRequest) 
 	}
 	s.addIndexStatus(responseData)
 
-	result := jsonResult(responseData)
-	s.addUpdateNotice(result)
-	return result, nil
+	return jsonResult(responseData), nil
 }

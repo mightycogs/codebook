@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/DeusData/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebase-memory-mcp/internal/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -49,9 +49,7 @@ func (s *Server) handleGetArchitecture(_ context.Context, req *mcp.CallToolReque
 	addADRToResponse(responseData, aspects, st, projName)
 
 	s.addIndexStatus(responseData)
-	result := jsonResult(responseData)
-	s.addUpdateNotice(result)
-	return result, nil
+	return jsonResult(responseData), nil
 }
 
 // parseAspects extracts and validates the aspects array from tool arguments.

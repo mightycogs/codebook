@@ -13,7 +13,7 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/DeusData/codebase-memory-mcp/internal/lang"
+	"github.com/mightycogs/codebase-memory-mcp/internal/lang"
 )
 
 // FileResult holds the extraction results from one file.

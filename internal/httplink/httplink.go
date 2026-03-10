@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/DeusData/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebase-memory-mcp/internal/store"
 )
 
 // RouteHandler represents a discovered HTTP route handler.

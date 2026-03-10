@@ -4,23 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/DeusData/codebase-memory-mcp/internal/discover"
-	"github.com/DeusData/codebase-memory-mcp/internal/pipeline"
-	"github.com/DeusData/codebase-memory-mcp/internal/store"
-	"github.com/DeusData/codebase-memory-mcp/internal/watcher"
+	"github.com/mightycogs/codebase-memory-mcp/internal/discover"
+	"github.com/mightycogs/codebase-memory-mcp/internal/pipeline"
+	"github.com/mightycogs/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebase-memory-mcp/internal/watcher"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -30,9 +26,6 @@ var Version = "dev"
 
 // SetVersion sets the package version from the build-injected main.version.
 func SetVersion(v string) { Version = v }
-
-// releaseURL is the GitHub API endpoint for latest release. Package-level var for test injection.
-var releaseURL = "https://api.github.com/repos/DeusData/codebase-memory-mcp/releases/latest"
 
 // Server wraps the MCP server with tool handlers.
 type Server struct {
@@ -48,7 +41,6 @@ type Server struct {
 	sessionProject string // derived from sessionRoot via ProjectNameFromPath
 	indexStatus    atomic.Value
 	indexStartedAt atomic.Value // time.Time — when current/last index started
-	updateNotice   atomic.Value // string — set once by checkForUpdate, cleared after first injection
 }
 
 // NewServer creates a new MCP server with all tools registered.
@@ -113,7 +105,6 @@ func (s *Server) SessionProject() string {
 
 // SetSessionRoot sets the session root path directly (for CLI mode).
 func (s *Server) SetSessionRoot(rootPath string) {
-	go s.checkForUpdate()
 	s.sessionOnce.Do(func() {
 		s.sessionRoot = rootPath
 		if rootPath != "" {
@@ -126,7 +117,6 @@ func (s *Server) SetSessionRoot(rootPath string) {
 
 // onInitialized is called when the client sends notifications/initialized.
 func (s *Server) onInitialized(ctx context.Context, req *mcp.InitializedRequest) {
-	go s.checkForUpdate()
 	s.sessionOnce.Do(func() {
 		s.sessionRoot = s.detectSessionRoot(ctx, req.Session)
 		if s.sessionRoot != "" {
@@ -138,7 +128,6 @@ func (s *Server) onInitialized(ctx context.Context, req *mcp.InitializedRequest)
 
 // onRootsChanged re-detects session root if not yet set.
 func (s *Server) onRootsChanged(ctx context.Context, req *mcp.RootsListChangedRequest) {
-	go s.checkForUpdate()
 	s.sessionOnce.Do(func() {
 		s.sessionRoot = s.detectSessionRoot(ctx, req.Session)
 		if s.sessionRoot != "" {
@@ -263,81 +252,6 @@ func (s *Server) addIndexStatus(data map[string]any) {
 	if status == "indexing" {
 		data["index_status"] = "indexing"
 	}
-}
-
-// addUpdateNotice prepends an update notice to the first tool response, then clears itself.
-func (s *Server) addUpdateNotice(result *mcp.CallToolResult) {
-	if notice, ok := s.updateNotice.Load().(string); ok && notice != "" {
-		result.Content = append([]mcp.Content{&mcp.TextContent{Text: notice}}, result.Content...)
-		s.updateNotice.Store("")
-	}
-}
-
-// checkForUpdate fetches the latest GitHub release and stores a notice if newer.
-func (s *Server) checkForUpdate() {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, "GET", releaseURL, http.NoBody)
-	if err != nil {
-		slog.Warn("update check: request create failed", "err", err)
-		return
-	}
-	req.Header.Set("Accept", "application/vnd.github+json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		slog.Warn("update check: http failed", "err", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		slog.Warn("update check: bad status", "status", resp.StatusCode)
-		return
-	}
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
-	if err != nil {
-		slog.Warn("update check: body read failed", "err", err)
-		return
-	}
-
-	var release struct {
-		TagName string `json:"tag_name"`
-	}
-	if err := json.Unmarshal(body, &release); err != nil {
-		slog.Warn("update check: json parse failed", "err", err)
-		return
-	}
-
-	latest := strings.TrimPrefix(release.TagName, "v")
-	if latest == "" || latest == Version {
-		slog.Debug("update check: current", "version", Version, "latest", latest)
-		return
-	}
-	if compareVersions(latest, Version) > 0 {
-		notice := fmt.Sprintf(
-			"⚡ Update available: v%s → v%s — run: codebase-memory-mcp update",
-			Version, latest)
-		s.updateNotice.Store(notice)
-		slog.Info("update available", "current", Version, "latest", latest)
-	}
-}
-
-// compareVersions compares two semver strings (e.g. "0.2.1" vs "0.2.0").
-// Returns >0 if a > b, <0 if a < b, 0 if equal.
-func compareVersions(a, b string) int {
-	aParts := strings.Split(a, ".")
-	bParts := strings.Split(b, ".")
-	for i := 0; i < len(aParts) && i < len(bParts); i++ {
-		ai, _ := strconv.Atoi(aParts[i])
-		bi, _ := strconv.Atoi(bParts[i])
-		if ai != bi {
-			return ai - bi
-		}
-	}
-	return len(aParts) - len(bParts)
 }
 
 // --- Tool registration ---

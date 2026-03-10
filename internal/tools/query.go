@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/DeusData/codebase-memory-mcp/internal/cypher"
+	"github.com/mightycogs/codebase-memory-mcp/internal/cypher"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -37,7 +37,5 @@ func (s *Server) handleQueryGraph(_ context.Context, req *mcp.CallToolRequest) (
 	}
 	s.addIndexStatus(responseData)
 
-	res := jsonResult(responseData)
-	s.addUpdateNotice(res)
-	return res, nil
+	return jsonResult(responseData), nil
 }

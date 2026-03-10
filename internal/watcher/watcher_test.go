@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DeusData/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebase-memory-mcp/internal/store"
 )
 
 // newTestRouter creates a StoreRouter backed by a temp directory with a project registered.

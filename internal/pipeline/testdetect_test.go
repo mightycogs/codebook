@@ -3,7 +3,7 @@ package pipeline
 import (
 	"testing"
 
-	"github.com/DeusData/codebase-memory-mcp/internal/lang"
+	"github.com/mightycogs/codebase-memory-mcp/internal/lang"
 )
 
 func TestIsTestFileAllLanguages(t *testing.T) {

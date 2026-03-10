@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/DeusData/codebase-memory-mcp/internal/traces"
+	"github.com/mightycogs/codebase-memory-mcp/internal/traces"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

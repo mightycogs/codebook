@@ -111,15 +111,6 @@ func TestCLI_UninstallDryRun(t *testing.T) {
 	}
 }
 
-func TestCLI_UpdateDryRun(t *testing.T) {
-	cmd := testCmd(t, "update", "--dry-run")
-	out, _ := cmd.CombinedOutput()
-	output := string(out)
-	if !strings.Contains(output, "checking for updates") {
-		t.Fatalf("expected 'checking for updates' in output, got: %s", output)
-	}
-}
-
 func TestCLI_CliHelp(t *testing.T) {
 	cmd := testCmd(t, "cli", "--help")
 	out, err := cmd.CombinedOutput()

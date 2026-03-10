@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/DeusData/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebase-memory-mcp/internal/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -97,9 +97,7 @@ func (s *Server) handleTraceCallPath(_ context.Context, req *mcp.CallToolRequest
 	responseData["module"] = s.getModuleInfo(st, rootNode, foundProject)
 	s.addIndexStatus(responseData)
 
-	result := jsonResult(responseData)
-	s.addUpdateNotice(result)
-	return result, nil
+	return jsonResult(responseData), nil
 }
 
 func runTraceBFS(st *store.Store, rootID int64, direction string, edgeTypes []string, depth int, minConfidence float64) ([]*store.NodeHop, []store.EdgeInfo, error) {

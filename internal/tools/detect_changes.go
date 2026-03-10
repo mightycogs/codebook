@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"sort"
 
-	"github.com/DeusData/codebase-memory-mcp/internal/pipeline"
-	"github.com/DeusData/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebase-memory-mcp/internal/pipeline"
+	"github.com/mightycogs/codebase-memory-mcp/internal/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -98,9 +98,7 @@ func (s *Server) handleDetectChanges(_ context.Context, req *mcp.CallToolRequest
 	}
 	s.addIndexStatus(responseData)
 
-	result := jsonResult(responseData)
-	s.addUpdateNotice(result)
-	return result, nil
+	return jsonResult(responseData), nil
 }
 
 // resolveDetectRepo resolves the store, repo path, and project name for detect_changes.
@@ -146,9 +144,7 @@ func (s *Server) emptyDetectResponse() *mcp.CallToolResult {
 		},
 	}
 	s.addIndexStatus(responseData)
-	result := jsonResult(responseData)
-	s.addUpdateNotice(result)
-	return result
+	return jsonResult(responseData)
 }
 
 func buildFileList(files []pipeline.ChangedFile) []map[string]any {

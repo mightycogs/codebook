@@ -8,9 +8,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/DeusData/codebase-memory-mcp/internal/discover"
-	"github.com/DeusData/codebase-memory-mcp/internal/fqn"
-	"github.com/DeusData/codebase-memory-mcp/internal/store"
+	"github.com/mightycogs/codebase-memory-mcp/internal/discover"
+	"github.com/mightycogs/codebase-memory-mcp/internal/fqn"
+	"github.com/mightycogs/codebase-memory-mcp/internal/store"
 )
 
 // infraFile holds parsed metadata from an infrastructure file.
