@@ -115,27 +115,6 @@ Every release includes a `checksums.txt` with SHA-256 hashes for verification.
 
 > **Windows note**: Windows SmartScreen may show "Windows protected your PC" when you first run the binary. This is normal for unsigned open-source software. Click **"More info"** then **"Run anyway"**. You can verify the binary integrity using the `checksums.txt` file included in each release.
 
-### Setup Scripts
-
-<details>
-<summary>Alternative: automated download + install</summary>
-
-**macOS / Linux:**
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/mightycogs/codebase-memory-mcp/main/scripts/setup.sh | bash
-```
-
-**Windows (PowerShell):**
-
-```powershell
-irm https://raw.githubusercontent.com/mightycogs/codebase-memory-mcp/main/scripts/setup-windows.ps1 | iex
-```
-
-The scripts download the correct binary for your platform, install it, and run `codebase-memory-mcp install` to configure Claude Code/Codex.
-
-</details>
-
 ### Install via Claude Code
 
 Or just paste the repo URL into Claude Code:
@@ -166,17 +145,7 @@ A **C compiler** is needed because tree-sitter uses CGO (C bindings for AST pars
 
 </details>
 
-**Via setup script:**
-
-```bash
-# macOS / Linux
-curl -fsSL https://raw.githubusercontent.com/mightycogs/codebase-memory-mcp/main/scripts/setup.sh | bash -s -- --from-source
-
-# Windows (PowerShell) — builds inside WSL
-irm https://raw.githubusercontent.com/mightycogs/codebase-memory-mcp/main/scripts/setup-windows.ps1 -OutFile setup.ps1; .\setup.ps1 -FromSource
-```
-
-**Or manually:**
+**Manually:**
 
 ```bash
 git clone https://github.com/mightycogs/codebase-memory-mcp.git
@@ -260,57 +229,13 @@ You can still call `index_repository` manually at any time to force an immediate
 
 ## CLI Mode
 
-Every MCP tool can be invoked directly from the command line — no MCP client needed. Useful for testing, scripting, CI pipelines, and quick one-off queries.
+Every MCP tool can be invoked directly from the command line -- no MCP client needed. Useful for testing, scripting, CI pipelines, and quick one-off queries.
 
 ```bash
 codebase-memory-mcp cli <tool_name> [json_args]
 ```
 
-By default, the CLI prints a **human-friendly summary**. Use `--raw` for full JSON output (same format the MCP server returns).
-
-### Examples
-
-```bash
-# Index a repository
-codebase-memory-mcp cli index_repository '{"repo_path": "/path/to/repo"}'
-# → Indexed "repo": 1017 nodes, 2574 edges
-# →   db: ~/.cache/codebase-memory-mcp/codebase-memory.db
-
-# List indexed projects
-codebase-memory-mcp cli list_projects
-# → 2 project(s) indexed:
-# →   my-api       1017 nodes, 2574 edges  (indexed 2026-02-26T18:10:24Z)
-# →   my-frontend   450 nodes,  312 edges  (indexed 2026-02-26T17:34:06Z)
-
-# Search for functions
-codebase-memory-mcp cli search_graph '{"name_pattern": ".*Handler.*", "label": "Function"}'
-# → 5 result(s) found
-# →   [Function] HandleRequest  cmd/server/main.go:42
-
-# Trace call paths
-codebase-memory-mcp cli trace_call_path '{"function_name": "Search", "direction": "both"}'
-# → Trace from "Search": 8 node(s), 8 edge(s), 2 hop(s)
-
-# Run Cypher queries
-codebase-memory-mcp cli query_graph '{"query": "MATCH (f:Function) RETURN f.name LIMIT 5"}'
-# → 5 row(s) returned  [f.name]
-# →   main
-# →   HandleRequest
-
-# View graph schema
-codebase-memory-mcp cli get_graph_schema
-
-# No args needed for tools without required parameters
-codebase-memory-mcp cli list_projects
-
-# Full JSON output for scripting
-codebase-memory-mcp cli --raw search_graph '{"label": "Function", "limit": 100}' | jq '.results[].name'
-
-# List available tools
-codebase-memory-mcp cli --help
-```
-
-The CLI uses the same SQLite database as the MCP server (`~/.cache/codebase-memory-mcp/codebase-memory.db`). No watcher is started in CLI mode — each invocation is a single-shot operation.
+See [docs/CLI.md](docs/CLI.md) for full usage and examples.
 
 ## MCP Tools
 
@@ -329,9 +254,9 @@ The CLI uses the same SQLite database as the MCP server (`~/.cache/codebase-memo
 | `search_graph` | `label`, `name_pattern`, `project`, `file_pattern`, `relationship`, `direction`, `min_degree`, `max_degree`, `exclude_entry_points`, `case_sensitive`, `limit` (default 100), `offset` | Structured search with filters. **Case-insensitive by default** (set `case_sensitive=true` for exact case). Use `project` to scope to a single repo when multiple are indexed. Supports pagination via `limit`/`offset` — response includes `has_more` and `total`. |
 | `trace_call_path` | `function_name` (required), `direction` (inbound/outbound/both), `depth` (1-5, default 3), `risk_labels` (boolean) | BFS traversal from/to a function (exact name match). Returns call chains with signatures, constants, and edge types. Capped at 200 nodes. With `risk_labels=true`, adds CRITICAL/HIGH/MEDIUM/LOW classification and `impact_summary`. |
 | `detect_changes` | `scope` (unstaged/staged/all/branch), `base_branch`, `depth` (1-5, default 3) | Map git diff to affected graph symbols + blast radius. Returns changed files, changed symbols, and impacted callers with risk classification. Requires git in PATH. |
-| `query_graph` | `query` (required) | Execute Cypher-like graph queries (read-only). String matching in WHERE is case-sensitive by default — use `(?i)` flag for case-insensitive regex. See [Supported Cypher Subset](#supported-cypher-subset). |
+| `query_graph` | `query` (required) | Execute Cypher-like graph queries (read-only). String matching in WHERE is case-sensitive by default — use `(?i)` flag for case-insensitive regex. See [Supported Cypher Subset](docs/CYPHER.md). |
 | `get_graph_schema` | — | Node/edge counts, relationship patterns, sample names. Run this first to understand what's in the graph. |
-| `get_code_snippet` | `qualified_name` (required) | Read source code for a function by its qualified name (reads from disk). See [Qualified Names](#qualified-names) for the format. |
+| `get_code_snippet` | `qualified_name` (required) | Read source code for a function by its qualified name (reads from disk). See [Qualified Names](docs/GRAPH-MODEL.md#qualified-names) for the format. |
 | `get_architecture` | `aspects` (array, default `["all"]`), `project` | Codebase architecture overview computed from the code graph. Aspects: `languages`, `packages`, `entry_points`, `routes`, `hotspots`, `boundaries`, `services`, `layers` (heuristic), `clusters` (Louvain community detection), `file_tree`, `adr` (stored Architecture Decision Record). Call with `["all"]` for full orientation. |
 | `manage_adr` | `mode` (required: `get`/`store`/`update`/`delete`), `project`, `content`, `sections` | CRUD for Architecture Decision Records. `get`: retrieve ADR with parsed sections. `store`: create/replace full ADR (max 8000 chars). `update`: patch specific sections (unmentioned preserved). `delete`: remove ADR. Fixed sections: PURPOSE, STACK, ARCHITECTURE, PATTERNS, TRADEOFFS, PHILOSOPHY. |
 
@@ -345,236 +270,15 @@ The CLI uses the same SQLite database as the MCP server (`~/.cache/codebase-memo
 
 ## Usage Examples
 
-### Index a project
-
-```
-index_repository(repo_path="/path/to/your/project")
-```
-
-### Get codebase architecture overview
-
-```
-get_architecture(aspects=["all"])
-# → languages, packages, entry points, routes, hotspots, boundaries, services, layers, clusters, file tree
-
-get_architecture(aspects=["languages", "packages"])
-# → quick orientation — just language breakdown and top packages
-
-get_architecture(aspects=["hotspots", "boundaries", "clusters"])
-# → dependency analysis — most-called functions, cross-package calls, community detection
-```
-
-### Manage Architecture Decision Records (ADR)
-
-```
-# Store a new ADR
-manage_adr(mode="store", content="## PURPOSE\nOrder processing service\n\n## STACK\n- Go: speed\n- SQLite: embedded storage")
-
-# Update specific sections (others preserved)
-manage_adr(mode="update", sections={"PATTERNS": "- Pipeline pattern\n- Repository pattern"})
-
-# Retrieve the full ADR with parsed sections
-manage_adr(mode="get")
-
-# View ADR via architecture overview
-get_architecture(aspects=["adr"])
-
-# Delete the ADR
-manage_adr(mode="delete")
-```
-
-### Find all functions matching a pattern
-
-Search is **case-insensitive by default** — no need for `(?i)`:
-
-```
-search_graph(label="Function", name_pattern=".*handler")
-# → matches "Handler", "handler", "HANDLER", "RequestHandler", etc.
-
-# Use regex alternatives for broad matching:
-search_graph(name_pattern="auth|authenticate|authorization")
-
-# Opt in to exact case matching when needed:
-search_graph(name_pattern=".*Handler", case_sensitive=true)
-```
-
-### Search code (text search)
-
-```
-search_code(pattern="TODO")
-# → case-insensitive by default, matches "TODO", "Todo", "todo"
-
-search_code(pattern="TODO|FIXME|HACK", regex=true)
-# → find all issue markers
-
-search_code(pattern="TODO", case_sensitive=true)
-# → exact case match only
-```
-
-### Trace what a function calls
-
-```
-trace_call_path(function_name="ProcessOrder", depth=3, direction="outbound")
-```
-
-### Find what calls a function
-
-```
-trace_call_path(function_name="ProcessOrder", depth=2, direction="inbound")
-```
-
-### Risk-classified impact analysis
-
-```
-trace_call_path(function_name="ProcessOrder", direction="inbound", depth=3, risk_labels=true)
-```
-
-### Detect changes (git diff impact)
-
-```
-detect_changes()
-detect_changes(scope="staged")
-detect_changes(scope="branch", base_branch="main", depth=3)
-```
-
-### Dead code detection
-
-```
-search_graph(
-  label="Function",
-  relationship="CALLS",
-  direction="inbound",
-  max_degree=0,
-  exclude_entry_points=true
-)
-```
-
-### Cross-service HTTP calls
-
-```
-search_graph(label="Function", relationship="HTTP_CALLS", direction="outbound")
-```
-
-### Query all REST routes
-
-```
-search_graph(label="Route")
-```
-
-### Cypher queries
-
-```
-query_graph(query="MATCH (f:Function)-[:CALLS]->(g:Function) WHERE f.name = 'main' RETURN g.name, g.qualified_name LIMIT 20")
-```
-
-```
-# Case-insensitive regex in Cypher (use (?i) flag):
-query_graph(query="MATCH (f:Function) WHERE f.name =~ '(?i).*handler.*' RETURN f.name LIMIT 20")
-```
-
-```
-query_graph(query="MATCH (a)-[r:HTTP_CALLS]->(b) RETURN a.name, b.name, r.url_path, r.confidence LIMIT 10")
-```
-
-### High fan-out functions (calling 10+ others)
-
-```
-search_graph(label="Function", relationship="CALLS", direction="outbound", min_degree=10)
-```
-
-### Scope queries to a single project
-
-When multiple repositories are indexed, use `project` to avoid cross-project contamination:
-
-```
-search_graph(label="Function", name_pattern=".*Handler", project="my-api")
-```
-
-### Discover then trace (when you don't know the exact name)
-
-`trace_call_path` requires an exact function name match. Use `search_graph` first to discover the correct name:
-
-```
-search_graph(label="Function", name_pattern=".*Order.*")
-# → finds "ProcessOrder", "ValidateOrder", etc.
-
-trace_call_path(function_name="ProcessOrder", direction="inbound", depth=3)
-```
-
-### Paginate large result sets
-
-All search tools support pagination. The response includes `total`, `has_more`, `limit`, and `offset`:
-
-```
-search_graph(label="Function", limit=50, offset=0)
-# → {total: 449, has_more: true, limit: 50, offset: 0, results: [...]}
-
-search_graph(label="Function", limit=50, offset=50)
-# → next page
-```
+See [docs/EXAMPLES.md](docs/EXAMPLES.md) for comprehensive query examples including search, tracing, dead code detection, Cypher queries, and pagination.
 
 ## Graph Data Model
 
-### Node Labels
-
-`Project`, `Package`, `Folder`, `File`, `Module`, `Class`, `Function`, `Method`, `Interface`, `Enum`, `Type`, `Route`
-
-### Edge Types
-
-`CONTAINS_PACKAGE`, `CONTAINS_FOLDER`, `CONTAINS_FILE`, `DEFINES`, `DEFINES_METHOD`, `IMPORTS`, `CALLS`, `HTTP_CALLS`, `ASYNC_CALLS`, `IMPLEMENTS`, `HANDLES`, `USAGE`, `CONFIGURES`, `WRITES`, `MEMBER_OF`, `TESTS`, `USES_TYPE`, `FILE_CHANGES_WITH`
-
-### Node Properties
-
-- **Function/Method**: `signature`, `return_type`, `receiver`, `decorators`, `is_exported`, `is_entry_point`
-- **Module**: `constants` (list of module-level constants)
-- **Route**: `method`, `path`, `handler`
-- **All nodes**: `name`, `qualified_name`, `file_path`, `start_line`, `end_line`
-
-### Edge Properties
-
-- **HTTP_CALLS**: `confidence` (0.0–1.0), `url_path`, `http_method`
-- **CALLS**: `via` (e.g. `"route_registration"` for handler wiring)
-
-Edge properties are accessible in Cypher queries: `MATCH (a)-[r:HTTP_CALLS]->(b) RETURN r.confidence, r.url_path`
-
-### Qualified Names
-
-`get_code_snippet` and graph results use **qualified names** in the format `<project>.<path_parts>.<name>`:
-
-| Language | Source | Qualified Name |
-|----------|--------|---------------|
-| Go | `cmd/server/main.go` → `HandleRequest` | `myproject.cmd.server.main.HandleRequest` |
-| Python | `services/orders.py` → `ProcessOrder` | `myproject.services.orders.ProcessOrder` |
-| Python | `services/__init__.py` → `setup` | `myproject.services.setup` |
-| TypeScript | `src/components/App.tsx` → `App` | `myproject.src.components.App.App` |
-| Method | `UserService.GetUser` | `myproject.pkg.service.UserService.GetUser` |
-
-The format is: project name, file path with `/` replaced by `.` and extension removed, then the symbol name. Use `search_graph` to discover qualified names before passing them to `get_code_snippet`.
+See [docs/GRAPH-MODEL.md](docs/GRAPH-MODEL.md) for node labels, edge types, properties, and qualified name format.
 
 ### Supported Cypher Subset
 
-`query_graph` supports a subset of the Cypher query language. Results are capped at 200 rows.
-
-**Supported:**
-- `MATCH` with node labels: `(f:Function)`
-- `MATCH` with relationship types: `-[:CALLS]->`
-- `MATCH` with variable-length paths: `-[:CALLS*1..3]->`
-- `WHERE` with `=`, `<>`, `>`, `<`, `>=`, `<=`
-- `WHERE` with `=~` (regex), `CONTAINS`, `STARTS WITH`
-- `WHERE` with `AND`, `OR`, `NOT`
-- `RETURN` with property access: `f.name`, `r.confidence`
-- `RETURN` with `COUNT(x)`, `DISTINCT`
-- `ORDER BY` with `ASC`/`DESC`
-- `LIMIT`
-- Edge property access: `r.confidence`, `r.url_path`
-
-**Not supported:**
-- `WITH` clauses
-- `COLLECT`, `SUM`, or other aggregation functions (except `COUNT`)
-- `CREATE`, `DELETE`, `SET`, `MERGE` (read-only)
-- `OPTIONAL MATCH`
-- `UNION`
-- Variable-length path edge property binding (can't access individual edges in a path like `*1..3`)
+See [docs/CYPHER.md](docs/CYPHER.md) for the full query language reference.
 
 ## How Claude Code Uses the Graph
 
@@ -634,38 +338,16 @@ rm -rf ~/.cache/codebase-memory-mcp/
 make build    # Build binary to bin/
 make test     # Run all tests
 make lint     # Run golangci-lint
-make install  # go install
+make install  # Build and copy to ~/.local/bin/
 ```
 
 ## Troubleshooting
 
-| Problem | Cause | Fix |
-|---------|-------|-----|
-| `/mcp` doesn't show the server | Config not loaded or binary not found | Check `.mcp.json` path is absolute and correct. Restart Claude Code. Verify binary runs: `/path/to/codebase-memory-mcp` should output JSON. |
-| `index_repository` fails | Missing `repo_path` or path doesn't exist | Pass an absolute path: `index_repository(repo_path="/absolute/path")` |
-| `get_architecture` returns empty sections | No project indexed or project has few nodes | Run `index_repository` first. Some aspects (routes, hotspots, clusters) require enough graph data to produce meaningful results. |
-| `get_code_snippet` returns "node not found" | Wrong qualified name format | Use `search_graph` first to find the exact `qualified_name`, then pass it to `get_code_snippet`. See [Qualified Names](#qualified-names). |
-| `trace_call_path` returns 0 results | Exact name match — no fuzzy matching | Use `search_graph(name_pattern=".*PartialName.*")` to discover the exact function name first. |
-| Queries return results from wrong project | Multiple projects indexed, no filter | Add `project="your-project-name"` to `search_graph`. Use `list_projects` to see indexed project names. |
-| Graph is missing recently added files | Auto-sync hasn't caught up yet, or project was never indexed | Wait a few seconds for auto-sync, or run `index_repository` manually. Auto-sync polls at 1–60s intervals depending on repo size. |
-| `detect_changes` fails with "git not found" | git not installed or not on PATH | Install git. Required at runtime only for `detect_changes`. |
-| Binary not found after install | `~/.local/bin` not on PATH | Add to your shell profile: `export PATH="$HOME/.local/bin:$PATH"` |
-| Cypher query fails with parse error | Unsupported Cypher feature | See [Supported Cypher Subset](#supported-cypher-subset). `WITH`, `COLLECT`, `OPTIONAL MATCH` are not supported. |
+See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for common issues and fixes.
 
 ## Language Benchmark
 
-64 languages supported. Benchmarked against 64 real open-source repositories (78 to 49K nodes). 12 standardized questions per language. Grading: HIGH (1.0) / MEDIUM (0.5) / LOW (0.1). Overall: **76%** average MCP score across all languages (97% for explorer-based agents).
-
-| Tier | Score | Languages |
-|------|-------|-----------|
-| **Tier 1 — Excellent** | >= 90% | Lua, Kotlin, C++, Perl, Objective-C, Groovy, C, Bash, Zig, Swift, CSS, YAML, TOML, HTML, SCSS, HCL, Dockerfile |
-| **Tier 2 — Good** | 75–89% | Python, TypeScript, TSX, Go, Rust, Java, R, Dart, JavaScript, Erlang, Elixir, Scala, Ruby, PHP, C#, SQL |
-| **Tier 3 — Functional** | < 75% | OCaml (72%), Haskell (62%) |
-| **Not yet re-benchmarked** | — | Nix, Meson |
-
-**Stress test**: Linux kernel `drivers/net/ethernet/intel/` — 20K nodes, 67K edges, 129K-char deep traces, zero timeouts.
-
-See [`BENCHMARK.md`](BENCHMARK.md) for the full 35-language benchmark with per-question scoring and methodology.
+64 languages supported. See [docs/BENCHMARK.md](docs/BENCHMARK.md) for the full benchmark with per-question scoring.
 
 ## Architecture
 
