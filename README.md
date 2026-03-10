@@ -1,5 +1,7 @@
 # codebase-memory-mcp
 
+> **This is a customized fork of [DeusData/codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp)** -- an excellent project by the DeusData team. Full credit to the original authors for the architecture, tree-sitter integration, and the idea itself. This fork is tailored for internal use and is not recommended for general consumption. Changes from upstream: removed self-update mechanism for supply chain security, rebranded to mightycogs namespace, restructured documentation, removed setup scripts in favor of Makefile-based workflow.
+
 Every time an AI agent explores your codebase, it burns thousands of tokens grepping through files, rebuilding the same understanding from scratch. This MCP server indexes your code into a persistent knowledge graph -- one query returns what would take dozens of file reads. 99% fewer tokens, sub-millisecond responses, survives session restarts.
 
 Single Go binary. No Docker, no databases, no API keys.
