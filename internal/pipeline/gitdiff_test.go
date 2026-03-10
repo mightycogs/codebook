@@ -1,6 +1,9 @@
 package pipeline
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -118,6 +121,46 @@ func TestParseHunksOutput_NoNewlineMarker(t *testing.T) {
 	}
 	if hunks[0].StartLine != 5 || hunks[0].EndLine != 7 {
 		t.Errorf("range = %d-%d, want 5-7", hunks[0].StartLine, hunks[0].EndLine)
+	}
+}
+
+func TestParseGitDiffFilesAndHunks(t *testing.T) {
+	repo := initGitRepo(t)
+	gitCommitFile(t, repo, "main.go", "package main\n\nfunc main() {}\n", "add main")
+
+	updated := "package main\n\nfunc main() {\n\tprintln(\"hi\")\n}\n"
+	if err := os.WriteFile(filepath.Join(repo, "main.go"), []byte(updated), 0o644); err != nil {
+		t.Fatalf("write updated file: %v", err)
+	}
+
+	files, err := ParseGitDiffFiles(repo, DiffUnstaged, "")
+	if err != nil {
+		t.Fatalf("ParseGitDiffFiles failed: %v", err)
+	}
+	if len(files) != 1 || files[0].Path != "main.go" || files[0].Status != "M" {
+		t.Fatalf("unexpected changed files: %+v", files)
+	}
+
+	hunks, err := ParseGitDiffHunks(repo, DiffUnstaged, "")
+	if err != nil {
+		t.Fatalf("ParseGitDiffHunks failed: %v", err)
+	}
+	if len(hunks) == 0 || hunks[0].Path != "main.go" {
+		t.Fatalf("unexpected hunks: %+v", hunks)
+	}
+
+	cmd := exec.Command("git", "add", "main.go")
+	cmd.Dir = repo
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git add failed: %v\n%s", err, out)
+	}
+
+	files, err = ParseGitDiffFiles(repo, DiffStaged, "")
+	if err != nil {
+		t.Fatalf("ParseGitDiffFiles staged failed: %v", err)
+	}
+	if len(files) != 1 || files[0].Status != "M" {
+		t.Fatalf("unexpected staged files: %+v", files)
 	}
 }
 

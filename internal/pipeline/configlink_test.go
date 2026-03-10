@@ -263,6 +263,9 @@ func TestIsDependencyChild(t *testing.T) {
 		want bool
 	}{
 		{"project.dependencies.express", true},
+		{"project.devDependencies.react", true},
+		{"project.peerDependencies.react", true},
+		{"project.optionalDependencies.fsevents", true},
 		{"project.dev-dependencies.serde", true},
 		{"project.build-dependencies.cc", true},
 		{"project.name", false},
@@ -317,6 +320,43 @@ func TestCollectConfigEntries_FilterShortTokens(t *testing.T) {
 		for _, e := range entries {
 			t.Logf("  entry: %s (normalized: %s)", e.node.Name, e.normalized)
 		}
+	}
+}
+
+func TestResolveEdgeNodes(t *testing.T) {
+	s, err := store.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	project := "proj"
+	if err := s.UpsertProject(project, "/tmp/proj"); err != nil {
+		t.Fatal(err)
+	}
+
+	srcID, err := s.UpsertNode(&store.Node{Project: project, Label: "Module", Name: "a", QualifiedName: "proj.a", FilePath: "a.go"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	dstID, err := s.UpsertNode(&store.Node{Project: project, Label: "Module", Name: "b", QualifiedName: "proj.b", FilePath: "b.go"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p := &Pipeline{Store: s, ProjectName: project}
+	lookup, _ := p.resolveEdgeNodes([]*store.Edge{{
+		Project:  project,
+		SourceID: srcID,
+		TargetID: dstID,
+		Type:     "IMPORTS",
+	}})
+
+	if lookup[srcID] == nil || lookup[srcID].QualifiedName != "proj.a" {
+		t.Fatalf("missing source lookup for %d: %+v", srcID, lookup[srcID])
+	}
+	if lookup[dstID] == nil || lookup[dstID].QualifiedName != "proj.b" {
+		t.Fatalf("missing target lookup for %d: %+v", dstID, lookup[dstID])
 	}
 }
 

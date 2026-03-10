@@ -460,10 +460,10 @@ func (p *Pipeline) resolveFileTypeRefsCBM(relPath string, ext *cachedExtraction)
 // resolveFileConfiguresCBM resolves env access calls using pre-extracted CBM data.
 // Replaces resolveFileConfigures() — no AST walking needed.
 func (p *Pipeline) resolveFileConfiguresCBM(relPath string, ext *cachedExtraction, envIndex map[string]string) []resolvedEdge {
-	moduleQN := fqn.ModuleQN(p.ProjectName, relPath)
+	_ = fqn.ModuleQN(p.ProjectName, relPath)
 
 	var edges []resolvedEdge
-	seen := make(map[[2]string]bool)
+	seen := make(map[[3]string]bool)
 
 	for _, ea := range ext.Result.EnvAccesses {
 		envKey := ea.EnvKey
@@ -477,13 +477,12 @@ func (p *Pipeline) resolveFileConfiguresCBM(relPath string, ext *cachedExtractio
 			continue
 		}
 
-		key := [2]string{funcQN, targetModuleQN}
+		key := [3]string{funcQN, targetModuleQN, envKey}
 		if seen[key] {
 			continue
 		}
 		seen[key] = true
 
-		_ = moduleQN
 		edges = append(edges, resolvedEdge{
 			CallerQN: funcQN,
 			TargetQN: targetModuleQN,

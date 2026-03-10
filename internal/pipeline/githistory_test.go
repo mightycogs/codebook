@@ -1,8 +1,14 @@
 package pipeline
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
+
+	"github.com/mightycogs/codebase-memory-mcp/internal/store"
 )
 
 func TestIsTrackableFile(t *testing.T) {
@@ -27,6 +33,49 @@ func TestIsTrackableFile(t *testing.T) {
 			t.Errorf("isTrackableFile(%q) = %v, want %v", tt.path, got, tt.want)
 		}
 	}
+}
+
+func gitCommitFile(t *testing.T, repo, name, content, message string) {
+	t.Helper()
+
+	path := filepath.Join(repo, name)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", path, err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+
+	commands := [][]string{
+		{"git", "add", name},
+		{"git", "commit", "-m", message},
+	}
+	for _, args := range commands {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = repo
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("%v failed: %v\n%s", args, err, out)
+		}
+	}
+}
+
+func initGitRepo(t *testing.T) string {
+	t.Helper()
+
+	repo := t.TempDir()
+	commands := [][]string{
+		{"git", "init"},
+		{"git", "config", "user.name", "Test User"},
+		{"git", "config", "user.email", "test@example.com"},
+	}
+	for _, args := range commands {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = repo
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("%v failed: %v\n%s", args, err, out)
+		}
+	}
+	return repo
 }
 
 func TestComputeChangeCoupling(t *testing.T) {
@@ -60,6 +109,191 @@ func TestComputeChangeCoupling(t *testing.T) {
 		if c.FileA == "d.go" || c.FileB == "d.go" {
 			t.Error("d.go should not appear (below threshold)")
 		}
+	}
+}
+
+func TestParseGitLog(t *testing.T) {
+	repo := initGitRepo(t)
+	gitCommitFile(t, repo, "a.go", "package main\n", "add a")
+	gitCommitFile(t, repo, "b.go", "package main\n", "add b")
+	gitCommitFile(t, repo, "package-lock.json", "{}\n", "add lock file")
+
+	commits, err := parseGitLog(repo)
+	if err != nil {
+		t.Fatalf("parseGitLog failed: %v", err)
+	}
+	if len(commits) < 2 {
+		t.Fatalf("expected at least 2 commits with tracked files, got %d", len(commits))
+	}
+
+	foundA := false
+	for _, c := range commits {
+		for _, f := range c.Files {
+			if f == "a.go" {
+				foundA = true
+			}
+			if f == "package-lock.json" {
+				t.Fatal("lock file should be filtered from git history")
+			}
+		}
+	}
+	if !foundA {
+		t.Fatal("expected tracked file a.go in parsed git log")
+	}
+}
+
+func TestCreateCouplingEdgesAndFindFileNode(t *testing.T) {
+	s, err := store.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	project := "proj"
+	if err := s.UpsertProject(project, "/tmp/proj"); err != nil {
+		t.Fatal(err)
+	}
+
+	nodeA, err := s.UpsertNode(&store.Node{Project: project, Label: "File", Name: "a.go", QualifiedName: "proj.a", FilePath: "a.go"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	nodeB, err := s.UpsertNode(&store.Node{Project: project, Label: "File", Name: "b.go", QualifiedName: "proj.b", FilePath: "b.go"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p := &Pipeline{ctx: context.Background(), Store: s, ProjectName: project}
+
+	if got := p.findFileNode("a.go"); got == nil || got.ID != nodeA {
+		t.Fatalf("findFileNode(a.go) = %+v, want ID %d", got, nodeA)
+	}
+
+	count := p.createCouplingEdges([]ChangeCoupling{{
+		FileA:         "a.go",
+		FileB:         "b.go",
+		CoChangeCount: 3,
+		TotalChangesA: 4,
+		TotalChangesB: 5,
+		CouplingScore: 0.75,
+	}})
+	if count != 1 {
+		t.Fatalf("expected 1 coupling edge, got %d", count)
+	}
+
+	edges, err := s.FindEdgesByType(project, "FILE_CHANGES_WITH")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 stored edge, got %d", len(edges))
+	}
+	if edges[0].SourceID != nodeA || edges[0].TargetID != nodeB {
+		t.Fatalf("unexpected edge endpoints: %+v", edges[0])
+	}
+}
+
+func TestFindFileNode_Fallbacks(t *testing.T) {
+	s, err := store.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	project := "proj"
+	if err := s.UpsertProject(project, "/tmp/proj"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpsertNode(&store.Node{Project: project, Label: "Module", Name: "a", QualifiedName: "proj.a", FilePath: "a.go"}); err != nil {
+		t.Fatal(err)
+	}
+
+	p := &Pipeline{ctx: context.Background(), Store: s, ProjectName: project}
+	if got := p.findFileNode("missing.go"); got != nil {
+		t.Fatalf("expected nil for missing file, got %+v", got)
+	}
+	if got := p.findFileNode("a.go"); got == nil || got.Label != "Module" {
+		t.Fatalf("expected fallback first node for a.go, got %+v", got)
+	}
+}
+
+func TestPassGitHistory(t *testing.T) {
+	repo := initGitRepo(t)
+	gitCommitFile(t, repo, "a.go", "package main\n", "add a")
+	gitCommitFile(t, repo, "b.go", "package main\n", "add b")
+
+	for i := 0; i < 3; i++ {
+		if err := os.WriteFile(filepath.Join(repo, "a.go"), []byte(fmt.Sprintf("package main\n// %d\n", i)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(repo, "b.go"), []byte(fmt.Sprintf("package main\n// %d\n", i)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		cmd := exec.Command("git", "add", "a.go", "b.go")
+		cmd.Dir = repo
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git add failed: %v\n%s", err, out)
+		}
+		cmd = exec.Command("git", "commit", "-m", fmt.Sprintf("pair %d", i))
+		cmd.Dir = repo
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git commit failed: %v\n%s", err, out)
+		}
+	}
+
+	s, err := store.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	project := "proj"
+	if err := s.UpsertProject(project, repo); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpsertNode(&store.Node{Project: project, Label: "File", Name: "a.go", QualifiedName: "proj.a", FilePath: "a.go"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpsertNode(&store.Node{Project: project, Label: "File", Name: "b.go", QualifiedName: "proj.b", FilePath: "b.go"}); err != nil {
+		t.Fatal(err)
+	}
+
+	p := &Pipeline{ctx: context.Background(), Store: s, ProjectName: project, RepoPath: repo}
+	p.passGitHistory()
+
+	edges, err := s.FindEdgesByType(project, "FILE_CHANGES_WITH")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(edges) == 0 {
+		t.Fatal("expected coupling edges after passGitHistory")
+	}
+}
+
+func TestPassGitHistory_NoCommits(t *testing.T) {
+	repo := initGitRepo(t)
+	gitCommitFile(t, repo, "package-lock.json", "{}\n", "lock only")
+
+	s, err := store.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	project := "proj"
+	if err := s.UpsertProject(project, repo); err != nil {
+		t.Fatal(err)
+	}
+
+	p := &Pipeline{ctx: context.Background(), Store: s, ProjectName: project, RepoPath: repo}
+	p.passGitHistory()
+
+	edges, err := s.FindEdgesByType(project, "FILE_CHANGES_WITH")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(edges) != 0 {
+		t.Fatalf("expected no coupling edges, got %d", len(edges))
 	}
 }
 

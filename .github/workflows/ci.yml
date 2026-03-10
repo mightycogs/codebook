@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          CGO_ENABLED=1 go test ./... -coverprofile=coverage.out -json > test-report.json
+          make report
           TEST_EXIT=$?
           set -e
 
@@ -80,12 +80,10 @@ jobs:
         shell: bash
         run: |
           mkdir -p coverage-report
-          cp test-report.json coverage-report/test-report.json
-          if [[ -f coverage.out ]]; then
-            cp coverage.out coverage-report/coverage.out
-            go tool cover -func=coverage.out > coverage-report/coverage.txt
-            go tool cover -html=coverage.out -o coverage-report/index.html
-          else
+          for f in test-report.json coverage.out coverage.txt coverage.html; do
+            [[ -f "$f" ]] && cp "$f" coverage-report/
+          done
+          if [[ ! -f coverage-report/coverage.txt ]]; then
             echo "coverage.out was not generated (tests failed before coverage profile)." > coverage-report/coverage.txt
           fi
       - name: Upload reports

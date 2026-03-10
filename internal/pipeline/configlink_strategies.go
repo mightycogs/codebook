@@ -26,8 +26,12 @@ var manifestFiles = map[string]bool{
 
 // depSectionNames are section/key names that indicate dependency lists.
 var depSectionNames = map[string]bool{
-	"dependencies": true, "devDependencies": true, "peerDependencies": true,
-	"dev-dependencies": true, "build-dependencies": true,
+	"dependencies":         true,
+	"devdependencies":      true,
+	"peerdependencies":     true,
+	"optionaldependencies": true,
+	"dev-dependencies":     true,
+	"build-dependencies":   true,
 }
 
 // configFileRefRe matches string literals referencing config files.

@@ -79,6 +79,20 @@ Search is case-insensitive by default. The graph covers 64 languages -- from Pyt
 
 All search tools support pagination (`limit`/`offset`) and return `has_more` and `total` counts. Full parameter reference: [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md). Query examples: [docs/EXAMPLES.md](docs/EXAMPLES.md). Cypher syntax: [docs/CYPHER.md](docs/CYPHER.md).
 
+## Development
+
+```
+make              # show all targets
+make test         # run tests (PKG=./internal/store/ VERBOSE=1)
+make coverage     # run tests + coverage gate (COVER_MIN=85)
+make report       # generate JSON report, coverage.txt, coverage.html (used by CI)
+make check        # lint + tests
+make build        # build binary to bin/
+make install      # build + copy to ~/.local/bin/
+```
+
+All test/coverage targets accept `PKG=./internal/...` to scope to a single package.
+
 ## CLI Mode
 
 Every tool works from the command line too -- no MCP client needed:

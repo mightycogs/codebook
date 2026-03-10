@@ -79,6 +79,7 @@ func (p *Pipeline) processNodeDecorators(n *store.Node) int {
 // "@pytest.fixture" → "pytest.fixture"
 // "@Override" → "Override"
 func decoratorFunctionName(dec string) string {
+	dec = strings.TrimSpace(dec)
 	dec = strings.TrimPrefix(dec, "@")
 	if idx := strings.Index(dec, "("); idx > 0 {
 		dec = dec[:idx]

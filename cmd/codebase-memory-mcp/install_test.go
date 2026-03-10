@@ -263,6 +263,99 @@ func TestDryRun(t *testing.T) {
 	}
 }
 
+func TestUpsertCodexMCP(t *testing.T) {
+	cfgFile := filepath.Join(t.TempDir(), "config.toml")
+
+	if err := upsertCodexMCP(cfgFile, "\n[mcp_servers.codebase-memory-mcp]\ncommand = \"/tmp/cbm\"\n", "/tmp/cbm"); err != nil {
+		t.Fatalf("initial upsert failed: %v", err)
+	}
+	data, err := os.ReadFile(cfgFile)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if !strings.Contains(string(data), "command = \"/tmp/cbm\"") {
+		t.Fatalf("expected initial command, got %q", string(data))
+	}
+
+	if err := upsertCodexMCP(cfgFile, "\n[mcp_servers.codebase-memory-mcp]\ncommand = \"/tmp/ignored\"\n", "/tmp/cbm2"); err != nil {
+		t.Fatalf("update upsert failed: %v", err)
+	}
+	data, err = os.ReadFile(cfgFile)
+	if err != nil {
+		t.Fatalf("read updated config: %v", err)
+	}
+	text := string(data)
+	if strings.Count(text, "[mcp_servers.codebase-memory-mcp]") != 1 {
+		t.Fatalf("expected one MCP section, got %q", text)
+	}
+	if !strings.Contains(text, "command = \"/tmp/cbm2\"") {
+		t.Fatalf("expected updated command, got %q", text)
+	}
+}
+
+func TestEnsurePATH(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("PATH profile updates are Unix-specific")
+	}
+
+	t.Run("already_on_path", func(t *testing.T) {
+		binDir := t.TempDir()
+		t.Setenv("PATH", binDir)
+		out := captureStdout(t, func() {
+			ensurePATH(filepath.Join(binDir, "codebase-memory-mcp"), installConfig{})
+		})
+		if !strings.Contains(out, "already on PATH") {
+			t.Fatalf("expected already-on-path message, got %q", out)
+		}
+	})
+
+	t.Run("already_in_rc", func(t *testing.T) {
+		home := t.TempDir()
+		setTestHome(t, home)
+		t.Setenv("SHELL", "/bin/zsh")
+		t.Setenv("PATH", t.TempDir())
+		binDir := t.TempDir()
+		rcFile := filepath.Join(home, ".zshrc")
+		line := "export PATH=\"" + binDir + ":$PATH\""
+		if err := os.WriteFile(rcFile, []byte(line+"\n"), 0o600); err != nil {
+			t.Fatalf("write rc file: %v", err)
+		}
+		out := captureStdout(t, func() {
+			ensurePATH(filepath.Join(binDir, "codebase-memory-mcp"), installConfig{})
+		})
+		if !strings.Contains(out, "Already in") {
+			t.Fatalf("expected already-in-rc message, got %q", out)
+		}
+	})
+
+	t.Run("dry_run_append", func(t *testing.T) {
+		home := t.TempDir()
+		setTestHome(t, home)
+		t.Setenv("SHELL", "/bin/zsh")
+		t.Setenv("PATH", t.TempDir())
+		binDir := t.TempDir()
+		out := captureStdout(t, func() {
+			ensurePATH(filepath.Join(binDir, "codebase-memory-mcp"), installConfig{dryRun: true})
+		})
+		if !strings.Contains(out, "[dry-run] Would append") {
+			t.Fatalf("expected dry-run append message, got %q", out)
+		}
+	})
+}
+
+func TestExecCLI(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell exec assertions are Unix-specific")
+	}
+
+	if err := execCLI("/bin/sh", "-c", "exit 0"); err != nil {
+		t.Fatalf("expected successful exec, got %v", err)
+	}
+	if err := execCLI("/bin/sh", "-c", "exit 7"); err == nil {
+		t.Fatal("expected failing exec")
+	}
+}
+
 func TestCodexInstructionsCreation(t *testing.T) {
 	home := t.TempDir()
 	setTestHome(t, home)

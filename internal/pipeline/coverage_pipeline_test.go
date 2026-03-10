@@ -2,9 +2,14 @@ package pipeline
 
 import (
 	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/mightycogs/codebase-memory-mcp/internal/cbm"
+	"github.com/mightycogs/codebase-memory-mcp/internal/discover"
+	"github.com/mightycogs/codebase-memory-mcp/internal/fqn"
 	"github.com/mightycogs/codebase-memory-mcp/internal/lang"
 	"github.com/mightycogs/codebase-memory-mcp/internal/store"
 )
@@ -1065,6 +1070,7 @@ func TestProjectNameFromPath_Coverage(t *testing.T) {
 		input string
 		want  string
 	}{
+		{"", "root"},
 		{"/home/user/project", "home-user-project"},
 		{"/", "root"},
 		{"/a/b/c", "a-b-c"},
@@ -1075,6 +1081,110 @@ func TestProjectNameFromPath_Coverage(t *testing.T) {
 			t.Errorf("ProjectNameFromPath(%q) = %q, want %q", tt.input, got, tt.want)
 		}
 	}
+}
+
+func TestCheckCancel(t *testing.T) {
+	t.Run("active_context", func(t *testing.T) {
+		p := &Pipeline{ctx: context.Background()}
+		if err := p.checkCancel(); err != nil {
+			t.Fatalf("expected nil error, got %v", err)
+		}
+	})
+
+	t.Run("canceled_context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		p := &Pipeline{ctx: ctx}
+		if err := p.checkCancel(); err == nil {
+			t.Fatal("expected context cancellation error")
+		}
+	})
+}
+
+func TestClassifyFiles(t *testing.T) {
+	t.Run("no_stored_hashes_means_full_index", func(t *testing.T) {
+		s, err := store.OpenMemory()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer s.Close()
+
+		project := "proj"
+		if err := s.UpsertProject(project, t.TempDir()); err != nil {
+			t.Fatal(err)
+		}
+
+		p := &Pipeline{ctx: context.Background(), Store: s, ProjectName: project}
+		files := []discover.FileInfo{{Path: "/tmp/a.go", RelPath: "a.go"}}
+
+		changed, unchanged := p.classifyFiles(files)
+		if len(changed) != 1 || len(unchanged) != 0 {
+			t.Fatalf("expected full index behavior, got changed=%d unchanged=%d", len(changed), len(unchanged))
+		}
+	})
+
+	t.Run("splits_changed_unchanged_and_hash_errors", func(t *testing.T) {
+		s, err := store.OpenMemory()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer s.Close()
+
+		repo := t.TempDir()
+		project := "proj"
+		if err := s.UpsertProject(project, repo); err != nil {
+			t.Fatal(err)
+		}
+
+		samePath := filepath.Join(repo, "same.go")
+		changedPath := filepath.Join(repo, "changed.go")
+		if err := os.WriteFile(samePath, []byte("package main\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(changedPath, []byte("package main\nvar x = 1\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+
+		sameHash, err := fileHash(samePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := s.UpsertFileHash(project, "same.go", sameHash); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.UpsertFileHash(project, "changed.go", "oldhash"); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.UpsertFileHash(project, "missing.go", "missinghash"); err != nil {
+			t.Fatal(err)
+		}
+
+		p := &Pipeline{ctx: context.Background(), Store: s, ProjectName: project}
+		files := []discover.FileInfo{
+			{Path: samePath, RelPath: "same.go"},
+			{Path: changedPath, RelPath: "changed.go"},
+			{Path: filepath.Join(repo, "missing.go"), RelPath: "missing.go"},
+			{Path: filepath.Join(repo, "new.go"), RelPath: "new.go"},
+		}
+		if err := os.WriteFile(files[3].Path, []byte("package main\nvar y = 2\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+
+		changed, unchanged := p.classifyFiles(files)
+		if len(unchanged) != 1 || unchanged[0].RelPath != "same.go" {
+			t.Fatalf("expected only same.go unchanged, got %+v", unchanged)
+		}
+
+		gotChanged := map[string]bool{}
+		for _, f := range changed {
+			gotChanged[f.RelPath] = true
+		}
+		for _, want := range []string{"changed.go", "missing.go", "new.go"} {
+			if !gotChanged[want] {
+				t.Fatalf("expected %s in changed set, got %+v", want, gotChanged)
+			}
+		}
+	})
 }
 
 func TestImportAdjustedConfidence_EdgeCases(t *testing.T) {
@@ -1415,6 +1525,56 @@ func TestResolveFileConfiguresCBM(t *testing.T) {
 	}
 }
 
+func TestResolveFileConfiguresCBM_DedupByEnvKey(t *testing.T) {
+	s, err := store.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	project := "test-proj"
+	_ = s.UpsertProject(project, "/tmp/test")
+
+	p := &Pipeline{
+		ctx:             context.Background(),
+		Store:           s,
+		ProjectName:     project,
+		registry:        NewFunctionRegistry(),
+		importMaps:      map[string]map[string]string{},
+		extractionCache: map[string]*cachedExtraction{},
+	}
+
+	envIndex := map[string]string{
+		"DB_URL":  "proj.config-env",
+		"API_KEY": "proj.config-env",
+	}
+
+	ext := &cachedExtraction{
+		Language: lang.Python,
+		Result: &cbm.FileResult{
+			EnvAccesses: []cbm.EnvAccess{
+				{EnvKey: "DB_URL", EnclosingFuncQN: "proj.mod.func1"},
+				{EnvKey: "API_KEY", EnclosingFuncQN: "proj.mod.func1"},
+				{EnvKey: "DB_URL", EnclosingFuncQN: "proj.mod.func1"},
+			},
+		},
+	}
+
+	edges := p.resolveFileConfiguresCBM("mod/handler.py", ext, envIndex)
+	if len(edges) != 2 {
+		t.Fatalf("expected 2 CONFIGURES edges for distinct env keys in one function, got %d", len(edges))
+	}
+
+	gotKeys := map[string]bool{}
+	for _, e := range edges {
+		envKey, _ := e.Properties["env_key"].(string)
+		gotKeys[envKey] = true
+	}
+	if !gotKeys["DB_URL"] || !gotKeys["API_KEY"] {
+		t.Fatalf("expected DB_URL and API_KEY edges, got %+v", gotKeys)
+	}
+}
+
 func TestFilterImportReachable_AllReachable(t *testing.T) {
 	imports := map[string]string{"a": "proj.a", "b": "proj.b"}
 	candidates := []string{"proj.a.Foo", "proj.b.Bar"}
@@ -1442,6 +1602,7 @@ func TestDecoratorFunctionName_EdgeCases(t *testing.T) {
 		{"@func()", "func"},
 		{"@no_parens", "no_parens"},
 		{"@a.b.c(x)", "a.b.c"},
+		{"  @spaced  ", "spaced"},
 	}
 	for _, tt := range tests {
 		got := decoratorFunctionName(tt.input)
@@ -1501,4 +1662,287 @@ func TestHasContention_CSWFloor(t *testing.T) {
 	if got != wantContention {
 		t.Errorf("hasContention = %v, want %v (ema=%f, threshold=%f)", got, wantContention, ms.emaNivcsw, threshold)
 	}
+}
+
+func TestLoadImportMapFromDB(t *testing.T) {
+	s, err := store.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	project := "proj"
+	if err := s.UpsertProject(project, t.TempDir()); err != nil {
+		t.Fatal(err)
+	}
+
+	moduleQN := fqn.ModuleQN(project, "app/main.go")
+	moduleID, err := s.UpsertNode(&store.Node{
+		Project:       project,
+		Label:         "Module",
+		Name:          "main.go",
+		QualifiedName: moduleQN,
+		FilePath:      "app/main.go",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	targetWithAliasQN := fqn.ModuleQN(project, "pkg/service.go")
+	targetWithAliasID, err := s.UpsertNode(&store.Node{
+		Project:       project,
+		Label:         "Module",
+		Name:          "service.go",
+		QualifiedName: targetWithAliasQN,
+		FilePath:      "pkg/service.go",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	targetWithoutAliasID, err := s.UpsertNode(&store.Node{
+		Project:       project,
+		Label:         "Module",
+		Name:          "other.go",
+		QualifiedName: fqn.ModuleQN(project, "pkg/other.go"),
+		FilePath:      "pkg/other.go",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := s.InsertEdge(&store.Edge{
+		Project:  project,
+		SourceID: moduleID,
+		TargetID: targetWithAliasID,
+		Type:     "IMPORTS",
+		Properties: map[string]any{
+			"alias": "service",
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.InsertEdge(&store.Edge{
+		Project:  project,
+		SourceID: moduleID,
+		TargetID: targetWithoutAliasID,
+		Type:     "IMPORTS",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	p := &Pipeline{ctx: context.Background(), Store: s, ProjectName: project}
+	importMap := p.loadImportMapFromDB(moduleQN)
+	if len(importMap) != 1 {
+		t.Fatalf("expected 1 aliased import, got %d: %+v", len(importMap), importMap)
+	}
+	if importMap["service"] != targetWithAliasQN {
+		t.Fatalf("expected service alias to resolve to %q, got %+v", targetWithAliasQN, importMap)
+	}
+	if got := p.loadImportMapFromDB("proj.missing.module"); got != nil {
+		t.Fatalf("expected nil import map for missing module, got %+v", got)
+	}
+}
+
+func TestFindDependentFiles(t *testing.T) {
+	s, err := store.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	repo := t.TempDir()
+	project := "proj"
+	if err := s.UpsertProject(project, repo); err != nil {
+		t.Fatal(err)
+	}
+
+	changed := []discover.FileInfo{{Path: filepath.Join(repo, "pkg", "service.go"), RelPath: "pkg/service.go"}}
+	unchanged := []discover.FileInfo{
+		{Path: filepath.Join(repo, "consumer.go"), RelPath: "consumer.go"},
+		{Path: filepath.Join(repo, "db_consumer.go"), RelPath: "db_consumer.go"},
+		{Path: filepath.Join(repo, "ignored.go"), RelPath: "ignored.go"},
+	}
+
+	folderQN := fqn.FolderQN(project, "pkg")
+	dbConsumerQN := fqn.ModuleQN(project, "db_consumer.go")
+	dbConsumerID, err := s.UpsertNode(&store.Node{
+		Project:       project,
+		Label:         "Module",
+		Name:          "db_consumer.go",
+		QualifiedName: dbConsumerQN,
+		FilePath:      "db_consumer.go",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	folderID, err := s.UpsertNode(&store.Node{
+		Project:       project,
+		Label:         "Folder",
+		Name:          "pkg",
+		QualifiedName: folderQN,
+		FilePath:      "pkg",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.InsertEdge(&store.Edge{
+		Project:  project,
+		SourceID: dbConsumerID,
+		TargetID: folderID,
+		Type:     "IMPORTS",
+		Properties: map[string]any{
+			"alias": "pkg",
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	p := &Pipeline{
+		ctx:         context.Background(),
+		Store:       s,
+		ProjectName: project,
+		importMaps: map[string]map[string]string{
+			fqn.ModuleQN(project, "consumer.go"): {
+				"service": fqn.ModuleQN(project, "pkg/service.go"),
+			},
+			fqn.ModuleQN(project, "ignored.go"): {
+				"other": fqn.ModuleQN(project, "pkg/other.go"),
+			},
+		},
+	}
+
+	dependents := p.findDependentFiles(changed, unchanged)
+	if len(dependents) != 2 {
+		t.Fatalf("expected 2 dependents, got %d: %+v", len(dependents), dependents)
+	}
+
+	got := map[string]bool{}
+	for _, f := range dependents {
+		got[f.RelPath] = true
+	}
+	if !got["consumer.go"] || !got["db_consumer.go"] {
+		t.Fatalf("expected consumer.go and db_consumer.go, got %+v", got)
+	}
+	if got["ignored.go"] {
+		t.Fatalf("did not expect ignored.go in dependent set: %+v", got)
+	}
+}
+
+func TestProcessJSONFile(t *testing.T) {
+	t.Run("stores_capped_constants", func(t *testing.T) {
+		s, err := store.OpenMemory()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer s.Close()
+
+		repo := t.TempDir()
+		project := "proj"
+		if err := s.UpsertProject(project, repo); err != nil {
+			t.Fatal(err)
+		}
+
+		payload := map[string]string{}
+		for i := 0; i < 25; i++ {
+			payload["service_url_"+string(rune('a'+i))] = "https://api.example.com/v1/resource"
+		}
+		data, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		relPath := "config/settings.json"
+		absPath := filepath.Join(repo, relPath)
+		if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(absPath, data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+
+		p := &Pipeline{ctx: context.Background(), Store: s, ProjectName: project}
+		if err := p.processJSONFile(discover.FileInfo{Path: absPath, RelPath: relPath}); err != nil {
+			t.Fatal(err)
+		}
+
+		node, err := s.FindNodeByQN(project, fqn.ModuleQN(project, relPath))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if node == nil {
+			t.Fatal("expected JSON module node to be created")
+		}
+		constants, ok := node.Properties["constants"].([]any)
+		if !ok {
+			t.Fatalf("expected constants slice, got %#v", node.Properties["constants"])
+		}
+		if len(constants) != 20 {
+			t.Fatalf("expected constants to be capped at 20, got %d", len(constants))
+		}
+	})
+
+	t.Run("skips_files_without_url_constants", func(t *testing.T) {
+		s, err := store.OpenMemory()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer s.Close()
+
+		repo := t.TempDir()
+		project := "proj"
+		if err := s.UpsertProject(project, repo); err != nil {
+			t.Fatal(err)
+		}
+
+		relPath := "config/plain.json"
+		absPath := filepath.Join(repo, relPath)
+		if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(absPath, []byte(`{"name":"svc","enabled":true}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+
+		p := &Pipeline{ctx: context.Background(), Store: s, ProjectName: project}
+		if err := p.processJSONFile(discover.FileInfo{Path: absPath, RelPath: relPath}); err != nil {
+			t.Fatal(err)
+		}
+
+		node, err := s.FindNodeByQN(project, fqn.ModuleQN(project, relPath))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if node != nil {
+			t.Fatalf("expected no module node for JSON without URLs, got %+v", node)
+		}
+	})
+
+	t.Run("returns_parse_error", func(t *testing.T) {
+		s, err := store.OpenMemory()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer s.Close()
+
+		repo := t.TempDir()
+		project := "proj"
+		if err := s.UpsertProject(project, repo); err != nil {
+			t.Fatal(err)
+		}
+
+		relPath := "config/bad.json"
+		absPath := filepath.Join(repo, relPath)
+		if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(absPath, []byte(`{"api_url":`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+
+		p := &Pipeline{ctx: context.Background(), Store: s, ProjectName: project}
+		if err := p.processJSONFile(discover.FileInfo{Path: absPath, RelPath: relPath}); err == nil {
+			t.Fatal("expected JSON parse error")
+		}
+	})
 }

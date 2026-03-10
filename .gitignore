@@ -11,6 +11,8 @@ bin/
 *.test
 *.out
 coverage.txt
+coverage.html
+test-report.json
 
 # IDE
 .idea/
