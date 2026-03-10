@@ -1,177 +1,125 @@
 # codebase-memory-mcp
 
-**Stop paying 100x more tokens for code exploration.** This MCP server indexes your codebase into a persistent knowledge graph that survives session restarts and context compaction. One graph query returns what would take dozens of grep/Glob calls — precise structural results in ~500 tokens vs ~80K tokens for file-by-file exploration.
+Every time an AI agent explores your codebase, it burns thousands of tokens grepping through files, rebuilding the same understanding from scratch. This MCP server indexes your code into a persistent knowledge graph -- one query returns what would take dozens of file reads. 99% fewer tokens, sub-millisecond responses, survives session restarts.
 
-Single Go binary. No Docker, no external databases, no API keys. One command to install, say *"Index this project"* — done.
+Single Go binary. No Docker, no databases, no API keys.
 
-Parses source code with [tree-sitter](https://tree-sitter.github.io/tree-sitter/), extracts functions, classes, modules, call relationships, and cross-service HTTP links. Exposes the graph through 12 MCP tools for use with Claude Code, Codex CLI, Cursor, Windsurf, Gemini CLI, VS Code, Zed, or any MCP-compatible client. Also includes a **CLI mode** for direct tool invocation from the shell — no MCP client needed.
+## Getting Started
 
-## Features
-
-- **64 languages**: Python, Go, JavaScript, TypeScript, TSX, Rust, Java, C++, C#, C, PHP, Lua, Scala, Kotlin, Ruby, Bash, Zig, Elixir, Haskell, OCaml, Objective-C, Swift, Dart, Perl, Groovy, Erlang, R, Clojure, F#, Julia, Vim Script, Nix, Common Lisp, Elm, Fortran, CUDA, COBOL, Verilog, Emacs Lisp, MATLAB, Lean 4, FORM, Magma, Wolfram, HTML, CSS, SCSS, YAML, TOML, HCL, SQL, Dockerfile, JSON, XML, Markdown, Makefile, CMake, Protobuf, GraphQL, Vue, Svelte, Meson, GLSL, INI
-- **Architecture overview**: `get_architecture` returns languages, packages, entry points, routes, hotspots, boundaries, layers, and clusters in a single call — instant codebase orientation
-- **Architecture Decision Records**: `manage_adr` persists architectural decisions (PURPOSE, STACK, ARCHITECTURE, PATTERNS, TRADEOFFS, PHILOSOPHY) across sessions with section filtering and validation
-- **Louvain community detection**: Discovers hidden functional modules across packages by clustering CALLS, HTTP_CALLS, and ASYNC_CALLS edges
-- **Git diff impact mapping**: `detect_changes` maps uncommitted changes to affected graph symbols + blast radius with risk classification (CRITICAL/HIGH/MEDIUM/LOW)
-- **Risk-classified tracing**: `trace_call_path` with `risk_labels=true` adds impact classification to every node in the call chain
-- **Case-insensitive search**: `search_graph` and `search_code` are case-insensitive by default — set `case_sensitive=true` for exact matching
-- **One-command install**: `codebase-memory-mcp install` auto-detects Claude Code, Codex CLI, Cursor, Windsurf, Gemini CLI, VS Code, and Zed, registers the MCP server, and installs task-specific skills
-- **Task-specific skills**: 4 skills (exploring, tracing, quality, reference) that prescribe exact tool sequences — Claude Code automatically uses graph tools instead of defaulting to grep
-- **Fast**: Sub-millisecond graph queries, incremental reindex 4x faster than full scan, optimized SQLite with LIKE pre-filtering for regex searches
-- **Call graph**: Resolves function calls across files and packages (import-aware, type-inferred)
-- **Cross-service HTTP linking**: Discovers REST routes (FastAPI, Gin, Express) and matches them to HTTP call sites with confidence scoring
-- **Auto-sync**: Background polling detects file changes and triggers incremental re-indexing automatically — no manual reindex needed after the initial index
-- **Incremental reindex**: Content-hash based — only re-parses changed files
-- **Cypher-like queries**: `MATCH (f:Function)-[:CALLS]->(g) WHERE f.name = 'main' RETURN g.name`
-- **Dead code detection**: Finds functions with zero callers, excluding entry points (route handlers, `main()`, framework-decorated functions)
-- **Route nodes**: REST endpoints are first-class graph entities, queryable by path/method
-- **JSON config scanning**: Extracts URLs from config/payload JSON files for cross-service linking
-- **CLI mode**: Invoke any tool directly from the shell — `codebase-memory-mcp cli search_graph '{"name_pattern": ".*Handler.*"}'`
-- **Single binary, zero infrastructure**: SQLite WAL mode, persists to `~/.cache/codebase-memory-mcp/`
-
-## How It Works
-
-codebase-memory-mcp is a **structural analysis backend** — it builds and queries the knowledge graph. It does **not** include an LLM. Instead, it relies on the MCP client (Claude Code, or any MCP-compatible AI assistant) to be the intelligence layer.
-
-When you ask Claude Code a question like *"what calls ProcessOrder?"*, this is what happens:
-
-1. **Claude Code** understands your natural language question
-2. **Claude Code** decides which MCP tool to call — in this case `trace_call_path(function_name="ProcessOrder", direction="inbound")`
-3. **codebase-memory-mcp** executes the graph query against SQLite and returns structured results
-4. **Claude Code** interprets the results and presents them in plain English
-
-For complex graph patterns, Claude Code writes Cypher queries on the fly:
-
-```
-You: "Show me all cross-service HTTP calls with confidence above 0.5"
-
-Claude Code generates and sends:
-  query_graph(query="MATCH (a)-[r:HTTP_CALLS]->(b) WHERE r.confidence > 0.5
-                     RETURN a.name, b.name, r.url_path, r.confidence
-                     ORDER BY r.confidence DESC LIMIT 20")
-
-codebase-memory-mcp returns the matching edges.
-Claude Code formats and explains the results.
-```
-
-**Why no built-in LLM?** Other code graph tools embed an LLM to translate natural language into graph queries. This means extra API keys, extra cost per query, and another model to configure. With MCP, the AI assistant you're already talking to *is* the query translator — no duplication needed.
-
-**Token efficiency**: Compared to having an AI agent grep through your codebase file by file, graph queries return precise results in a single tool call. In benchmarks across 64 real-world repos (78 to 49K nodes), five structural queries consumed ~3,400 tokens via codebase-memory-mcp versus ~412,000 tokens via file-by-file exploration — a **99.2% reduction**. All 64 supported languages use the same efficient graph backend.
-
-## Performance
-
-Benchmarked on Apple M3 Pro, macOS Darwin 25.3.0:
-
-| Operation | Time | Notes |
-|-----------|------|-------|
-| Fresh index (full codebase) | ~6s | 49K nodes, 196K edges (Django) |
-| Incremental reindex | ~1.2s | Content-hash skip for unchanged files |
-| Cypher query (relationship traversal) | <1ms | Up to 600x faster than v0.1.3 for pattern queries |
-| Name search (regex) | <10ms | SQL LIKE pre-filtering narrows before Go regex |
-| Dead code detection | ~150ms | Full graph scan with degree filtering |
-| Trace call path (depth=5) | <10ms | BFS traversal; 129K-char result on Linux kernel with zero timeouts |
-| Linux kernel stress test | 20K nodes | `drivers/net/ethernet/intel/` — 387 files, 67K edges |
-
-**Token efficiency**: Five structural queries consumed ~3,400 tokens via codebase-memory-mcp versus ~412,000 tokens via file-by-file grep exploration — a **99.2% reduction**.
-
-## Quick Start
-
-1. **Download** the binary for your platform from the [latest release](https://github.com/mightycogs/codebase-memory-mcp/releases/latest)
-2. **Extract and move** to a directory on your PATH:
-   ```bash
-   tar xzf codebase-memory-mcp-*.tar.gz
-   mv codebase-memory-mcp ~/.local/bin/   # or /usr/local/bin/
-   ```
-3. **Install**:
-   ```bash
-   codebase-memory-mcp install
-   ```
-4. **Restart** Claude Code / Codex CLI
-5. Say **"Index this project"** — done.
-
-The `install` command auto-detects Claude Code, Codex CLI, Cursor, Windsurf, Gemini CLI, VS Code, and Zed, registers the MCP server, installs 4 task-specific skills, and ensures the binary is on your PATH. Use `--dry-run` to preview without making changes.
-
-### Uninstall
+Download the binary for your platform from the [latest release](https://github.com/mightycogs/codebase-memory-mcp/releases/latest), then:
 
 ```bash
-codebase-memory-mcp uninstall
+tar xzf codebase-memory-mcp-*.tar.gz
+mv codebase-memory-mcp ~/.local/bin/
+codebase-memory-mcp install
 ```
 
-Removes skills, MCP registration, and Codex instructions. Does not remove the binary or SQLite databases.
+Restart your editor. The `install` command auto-detects Claude Code, Codex CLI, Cursor, Windsurf, Gemini CLI, VS Code, and Zed -- registers the MCP server and installs task-specific skills.
 
-## Installation
+Now open any project and say **"Index this project"**. That's it. The graph persists in `~/.cache/codebase-memory-mcp/` and auto-syncs when files change.
 
-### Pre-built Binaries
+To build from source instead, see [Building from Source](#building-from-source).
 
-| Platform | Binary |
-|----------|--------|
-| macOS (Apple Silicon) | `codebase-memory-mcp-darwin-arm64.tar.gz` |
-| macOS (Intel) | `codebase-memory-mcp-darwin-amd64.tar.gz` |
-| Linux (x86_64) | `codebase-memory-mcp-linux-amd64.tar.gz` |
-| Linux (ARM64 / Graviton) | `codebase-memory-mcp-linux-arm64.tar.gz` |
-| Windows (x86_64) | `codebase-memory-mcp-windows-amd64.zip` |
+## Everyday Usage
 
-Every release includes a `checksums.txt` with SHA-256 hashes for verification.
+Once indexed, just talk to your AI agent naturally. The graph tools are called automatically behind the scenes.
 
-> **Windows note**: Windows SmartScreen may show "Windows protected your PC" when you first run the binary. This is normal for unsigned open-source software. Click **"More info"** then **"Run anyway"**. You can verify the binary integrity using the `checksums.txt` file included in each release.
-
-### Install via Claude Code
-
-Or just paste the repo URL into Claude Code:
+**"What calls ProcessOrder?"** -- traces inbound call chains across files and packages:
 
 ```
-You: "Install this MCP server: https://github.com/mightycogs/codebase-memory-mcp"
+trace_call_path(function_name="ProcessOrder", direction="inbound", depth=3)
 ```
 
-Claude Code will clone, build, and configure it automatically.
+**"Find dead code"** -- functions with zero callers, excluding entry points:
 
-### Want to Hack on It? Build from Source
+```
+search_graph(label="Function", relationship="CALLS", direction="inbound",
+             max_degree=0, exclude_entry_points=true)
+```
 
-<details>
-<summary>Prerequisites</summary>
+**"What changed and what might break?"** -- maps your git diff to affected symbols with risk labels:
 
-| Requirement | Version | Check | Install |
-|-------------|---------|-------|---------|
-| **Go** | 1.26+ | `go version` | [go.dev/dl](https://go.dev/dl/) |
-| **C compiler** | gcc or clang | `gcc --version` or `clang --version` | See below |
-| **Git** | any | `git --version` | Pre-installed on most systems |
+```
+detect_changes(scope="staged", depth=3)
+```
 
-A **C compiler** is needed because tree-sitter uses CGO (C bindings for AST parsing):
+**"Show me the architecture"** -- languages, packages, entry points, hotspots, clusters, all in one call:
 
-- **macOS**: `xcode-select --install` (provides `clang`)
-- **Linux (Debian/Ubuntu)**: `sudo apt install build-essential`
-- **Linux (Fedora/RHEL)**: `sudo dnf install gcc`
-- **Windows**: Install [MSYS2](https://www.msys2.org/), then: `pacman -S mingw-w64-ucrt-x86_64-gcc`. Build from an MSYS2 UCRT64 shell.
+```
+get_architecture(aspects=["all"])
+```
 
-</details>
+For complex structural queries, the agent writes Cypher on the fly:
 
-**Manually:**
+```
+query_graph(query="MATCH (a)-[r:HTTP_CALLS]->(b) WHERE r.confidence > 0.5
+                   RETURN a.name, b.name, r.url_path ORDER BY r.confidence DESC")
+```
+
+Search is case-insensitive by default. The graph covers 64 languages -- from Python and Go to COBOL and Verilog.
+
+## MCP Tools
+
+12 tools exposed over MCP:
+
+**Indexing**: `index_repository`, `list_projects`, `delete_project`
+
+**Querying**: `search_graph`, `trace_call_path`, `detect_changes`, `query_graph`, `get_graph_schema`, `get_code_snippet`, `get_architecture`, `manage_adr`
+
+**Text search**: `search_code` -- grep-like search within indexed files
+
+All search tools support pagination (`limit`/`offset`) and return `has_more` and `total` counts. Full parameter reference: [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md). Query examples: [docs/EXAMPLES.md](docs/EXAMPLES.md). Cypher syntax: [docs/CYPHER.md](docs/CYPHER.md).
+
+## CLI Mode
+
+Every tool works from the command line too -- no MCP client needed:
+
+```bash
+codebase-memory-mcp cli search_graph '{"name_pattern": ".*Handler.*"}'
+codebase-memory-mcp cli trace_call_path '{"function_name": "main", "direction": "outbound"}'
+codebase-memory-mcp cli --raw query_graph '{"query": "MATCH (f:Function) RETURN f.name LIMIT 5"}' | jq
+```
+
+See [docs/CLI.md](docs/CLI.md) for more.
+
+## Graph Model
+
+The graph stores `Function`, `Class`, `Module`, `Route`, `Package`, `File` and other node types connected by edges like `CALLS`, `HTTP_CALLS`, `IMPORTS`, `IMPLEMENTS`, `TESTS`, and `CONFIGURES`. Edge properties carry metadata -- HTTP calls have `confidence` scores, routes have `method` and `path`.
+
+Full schema: [docs/GRAPH-MODEL.md](docs/GRAPH-MODEL.md)
+
+## Excluding Files
+
+Place a `.cgrignore` in your project root (one glob pattern per line) to skip directories or files during indexing. Common directories like `.git`, `node_modules`, `vendor`, `__pycache__`, `dist`, and `build` are always excluded.
+
+## Building from Source
+
+Requires Go 1.26+ and a C compiler (tree-sitter uses CGO).
 
 ```bash
 git clone https://github.com/mightycogs/codebase-memory-mcp.git
 cd codebase-memory-mcp
-CGO_ENABLED=1 go build -o codebase-memory-mcp ./cmd/codebase-memory-mcp/
-# Move the binary to somewhere on your PATH
+make install
 ```
 
-On **Windows with MSYS2** (from a UCRT64 shell):
+<details>
+<summary>Windows</summary>
+
+**MSYS2 (UCRT64 shell):**
 
 ```bash
+pacman -S mingw-w64-ucrt-x86_64-gcc
 CGO_ENABLED=1 CC=gcc go build -o codebase-memory-mcp.exe ./cmd/codebase-memory-mcp/
 ```
 
-On **Windows with WSL** (credit: [@Flipper1994](https://github.com/Flipper1994)):
+**WSL:**
 
 ```bash
-# Inside WSL (Ubuntu)
 sudo apt update && sudo apt install build-essential
-# Install Go 1.26+ from https://go.dev/dl/
-git clone https://github.com/mightycogs/codebase-memory-mcp.git
-cd codebase-memory-mcp
 CGO_ENABLED=1 go build -buildvcs=false -o ~/.local/bin/codebase-memory-mcp ./cmd/codebase-memory-mcp/
 ```
 
-When using a WSL-built binary, configure Claude Code to invoke it via `wsl.exe`:
+When using WSL, point your editor at the binary via `wsl.exe`:
 
 ```json
 {
@@ -185,187 +133,18 @@ When using a WSL-built binary, configure Claude Code to invoke it via `wsl.exe`:
 }
 ```
 
-### Manual Configuration
-
-<details>
-<summary>If you prefer not to use `codebase-memory-mcp install`</summary>
-
-Add the MCP server to your project's `.mcp.json` (per-project, recommended) or `~/.claude/settings.json` (global):
-
-```json
-{
-  "mcpServers": {
-    "codebase-memory-mcp": {
-      "type": "stdio",
-      "command": "/path/to/codebase-memory-mcp"
-    }
-  }
-}
-```
-
-Restart Claude Code after adding the config. Verify with `/mcp` — you should see `codebase-memory-mcp` listed with 12 tools.
-
 </details>
 
-### First Use
+## Reference
 
-```
-You: "Index this project"
-```
-
-Claude Code will call `index_repository` with your project's root path and build the knowledge graph. After indexing, you can ask structural questions like *"what calls main?"*, *"find dead code"*, or *"show cross-service HTTP calls"*.
-
-> **Note**: `index_repository` requires a `repo_path` parameter. When you say "Index this project", Claude Code infers the path from its working directory. If indexing fails, pass the path explicitly: `index_repository(repo_path="/absolute/path/to/project")`.
-
-### Auto-Sync
-
-After the initial `index_repository` call, the graph **stays fresh automatically**. A background watcher polls indexed projects for file changes (mtime + size) and triggers incremental re-indexing when changes are detected. You don't need to manually call `index_repository` again — just edit your code and the graph updates within seconds.
-
-- **Adaptive polling**: The interval scales with repo size (1s for small repos, up to 60s for very large ones)
-- **Non-blocking**: Auto-sync never blocks tool queries — if a manual `index_repository` is in progress, the watcher skips that cycle
-- **Incremental**: Only changed files are re-parsed (content-hash based), so even triggered re-indexes are fast
-
-You can still call `index_repository` manually at any time to force an immediate reindex (e.g. after a large `git pull`).
-
-## CLI Mode
-
-Every MCP tool can be invoked directly from the command line -- no MCP client needed. Useful for testing, scripting, CI pipelines, and quick one-off queries.
-
-```bash
-codebase-memory-mcp cli <tool_name> [json_args]
-```
-
-See [docs/CLI.md](docs/CLI.md) for full usage and examples.
-
-## MCP Tools
-
-### Indexing
-
-| Tool | Key Parameters | Description |
-|------|---------------|-------------|
-| `index_repository` | `repo_path` (required) | Index a repository into the graph. Only needed once — auto-sync keeps it fresh after that. Supports incremental reindex via content hashing. |
-| `list_projects` | — | List all indexed projects with `indexed_at` timestamps and node/edge counts. |
-| `delete_project` | `project_name` (required) | Remove a project and all its graph data. Irreversible. |
-
-### Querying
-
-| Tool | Key Parameters | Description |
-|------|---------------|-------------|
-| `search_graph` | `label`, `name_pattern`, `project`, `file_pattern`, `relationship`, `direction`, `min_degree`, `max_degree`, `exclude_entry_points`, `case_sensitive`, `limit` (default 100), `offset` | Structured search with filters. **Case-insensitive by default** (set `case_sensitive=true` for exact case). Use `project` to scope to a single repo when multiple are indexed. Supports pagination via `limit`/`offset` — response includes `has_more` and `total`. |
-| `trace_call_path` | `function_name` (required), `direction` (inbound/outbound/both), `depth` (1-5, default 3), `risk_labels` (boolean) | BFS traversal from/to a function (exact name match). Returns call chains with signatures, constants, and edge types. Capped at 200 nodes. With `risk_labels=true`, adds CRITICAL/HIGH/MEDIUM/LOW classification and `impact_summary`. |
-| `detect_changes` | `scope` (unstaged/staged/all/branch), `base_branch`, `depth` (1-5, default 3) | Map git diff to affected graph symbols + blast radius. Returns changed files, changed symbols, and impacted callers with risk classification. Requires git in PATH. |
-| `query_graph` | `query` (required) | Execute Cypher-like graph queries (read-only). String matching in WHERE is case-sensitive by default — use `(?i)` flag for case-insensitive regex. See [Supported Cypher Subset](docs/CYPHER.md). |
-| `get_graph_schema` | — | Node/edge counts, relationship patterns, sample names. Run this first to understand what's in the graph. |
-| `get_code_snippet` | `qualified_name` (required) | Read source code for a function by its qualified name (reads from disk). See [Qualified Names](docs/GRAPH-MODEL.md#qualified-names) for the format. |
-| `get_architecture` | `aspects` (array, default `["all"]`), `project` | Codebase architecture overview computed from the code graph. Aspects: `languages`, `packages`, `entry_points`, `routes`, `hotspots`, `boundaries`, `services`, `layers` (heuristic), `clusters` (Louvain community detection), `file_tree`, `adr` (stored Architecture Decision Record). Call with `["all"]` for full orientation. |
-| `manage_adr` | `mode` (required: `get`/`store`/`update`/`delete`), `project`, `content`, `sections` | CRUD for Architecture Decision Records. `get`: retrieve ADR with parsed sections. `store`: create/replace full ADR (max 8000 chars). `update`: patch specific sections (unmentioned preserved). `delete`: remove ADR. Fixed sections: PURPOSE, STACK, ARCHITECTURE, PATTERNS, TRADEOFFS, PHILOSOPHY. |
-
-### File Access
-
-> **Note**: File reading and directory listing are handled natively by your coding agent (Claude Code `Read` tool, Codex CLI `cat`/`ls`, etc.). The tools below provide text search within indexed project files.
-
-| Tool | Key Parameters | Description |
-|------|---------------|-------------|
-| `search_code` | `pattern` (required), `file_pattern`, `regex`, `case_sensitive`, `max_results` (default 100), `offset` | Grep-like text search within indexed project files. **Case-insensitive by default** (set `case_sensitive=true` for exact case). Supports pagination via `max_results`/`offset`. |
-
-## Usage Examples
-
-See [docs/EXAMPLES.md](docs/EXAMPLES.md) for comprehensive query examples including search, tracing, dead code detection, Cypher queries, and pagination.
-
-## Graph Data Model
-
-See [docs/GRAPH-MODEL.md](docs/GRAPH-MODEL.md) for node labels, edge types, properties, and qualified name format.
-
-### Supported Cypher Subset
-
-See [docs/CYPHER.md](docs/CYPHER.md) for the full query language reference.
-
-## How Claude Code Uses the Graph
-
-After `codebase-memory-mcp install`, Claude Code automatically has 4 task-specific skills that prescribe when and how to use graph tools:
-
-- **Exploring**: Codebase orientation, structure overview, finding functions/classes/routes
-- **Tracing**: Call chains, dependency analysis, cross-service HTTP calls, impact analysis
-- **Quality**: Dead code detection, fan-out analysis, refactor candidates
-- **Reference**: Tool syntax, Cypher query examples, edge types, pitfalls
-
-No CLAUDE.md changes needed — skills auto-trigger based on conversation context.
-
-<details>
-<summary>Manual skill installation (if not using `install` command)</summary>
-
-The skill files are embedded in the binary. If you prefer to install them manually, copy from this repo:
-
-- `cmd/codebase-memory-mcp/assets/skills/codebase-memory-exploring/SKILL.md` → `~/.claude/skills/codebase-memory-exploring/SKILL.md`
-- `cmd/codebase-memory-mcp/assets/skills/codebase-memory-tracing/SKILL.md` → `~/.claude/skills/codebase-memory-tracing/SKILL.md`
-- `cmd/codebase-memory-mcp/assets/skills/codebase-memory-quality/SKILL.md` → `~/.claude/skills/codebase-memory-quality/SKILL.md`
-- `cmd/codebase-memory-mcp/assets/skills/codebase-memory-reference/SKILL.md` → `~/.claude/skills/codebase-memory-reference/SKILL.md`
-
-
-</details>
-
-## Ignoring Files (`.cgrignore`)
-
-Place a `.cgrignore` file in your project root to exclude directories or files from indexing. The syntax is one glob pattern per line (comments with `#`):
-
-```
-# .cgrignore
-generated
-vendor
-__pycache__
-*.pb.go
-testdata
-fixtures
-```
-
-Patterns are matched against both directory names and relative paths using Go's `filepath.Match` syntax. Directories matching a pattern are skipped entirely (including all contents).
-
-The following directories are **always ignored** regardless of `.cgrignore`: `.git`, `node_modules`, `vendor`, `__pycache__`, `.mypy_cache`, `.venv`, `dist`, `build`, `.cache`, `.idea`, `.vscode`, and others.
-
-## Persistence
-
-The SQLite database is stored at `~/.cache/codebase-memory-mcp/codebase-memory.db`. It persists across restarts automatically (WAL mode, ACID-safe).
-
-To reset everything:
-
-```bash
-rm -rf ~/.cache/codebase-memory-mcp/
-```
-
-## Development
-
-```bash
-make build    # Build binary to bin/
-make test     # Run all tests
-make lint     # Run golangci-lint
-make install  # Build and copy to ~/.local/bin/
-```
-
-## Troubleshooting
-
-See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for common issues and fixes.
-
-## Language Benchmark
-
-64 languages supported. See [docs/BENCHMARK.md](docs/BENCHMARK.md) for the full benchmark with per-question scoring.
-
-## Architecture
-
-```
-cmd/codebase-memory-mcp/  Entry point (MCP stdio server + CLI mode + install command)
-internal/
-  store/                  SQLite graph storage (nodes, edges, traversal, search, architecture, Louvain clustering)
-  lang/                   Language specs (64 languages, tree-sitter node types)
-  cbm/                    Vendored tree-sitter C grammars (64 languages) and AST extraction engine
-  pipeline/               Multi-pass indexing (structure → definitions → calls → HTTP links → config links → communities → tests)
-  httplink/               Cross-service HTTP route/call-site matching
-  cypher/                 Cypher query lexer, parser, planner, executor
-  tools/                  MCP tool handlers (12 tools) + CLI dispatch
-  watcher/                Background auto-sync (mtime+size polling, adaptive intervals)
-  discover/               File discovery with .cgrignore support
-  fqn/                    Qualified name computation
-  traces/                 OpenTelemetry trace ingestion for HTTP_CALLS validation
-```
+- [MCP tools reference](docs/MCP_TOOLS.md)
+- [Query examples](docs/EXAMPLES.md)
+- [Cypher subset](docs/CYPHER.md)
+- [Graph model](docs/GRAPH-MODEL.md)
+- [CLI usage](docs/CLI.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Benchmark (64 languages)](docs/BENCHMARK.md)
+- [Contributing](docs/CONTRIBUTING.md)
 
 ## License
 
